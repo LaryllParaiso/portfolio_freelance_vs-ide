@@ -1,0 +1,58 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Dashboard</h1>
+        <div class="text-muted">Welcome, <strong>@(User?.Identity?.Name ?? "Admin")</strong></div>
+    </div>
+    <a class="btn btn-outline-dark" href="@Url.Action("Index", "Home", new { area = "" })">View Site</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6 col-lg-3">
+        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "HomeContent", new { area = "Admin" })">
+            <div class="card-body">
+                <div class="fw-semibold">Home Content</div>
+                <div class="text-muted small">Edit hero title, CTA, highlights</div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "AboutContent", new { area = "Admin" })">
+            <div class="card-body">
+                <div class="fw-semibold">About Content</div>
+                <div class="text-muted small">Edit bio, skills, experience</div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "Services", new { area = "Admin" })">
+            <div class="card-body">
+                <div class="fw-semibold">Services</div>
+                <div class="text-muted small">Add/update services and pricing</div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "Projects", new { area = "Admin" })">
+            <div class="card-body">
+                <div class="fw-semibold">Projects</div>
+                <div class="text-muted small">Manage your portfolio items</div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "Messages", new { area = "Admin" })">
+            <div class="card-body">
+                <div class="fw-semibold">Messages</div>
+                <div class="text-muted small">View contact form submissions</div>
+            </div>
+        </a>
+    </div>
+</div>

@@ -1,0 +1,58 @@
+﻿@model PortfolioWeb.Areas.Admin.Models.ProjectEditModel
+
+@{
+    ViewData["Title"] = "Edit Project";
+}
+
+<h1 class="h3 mb-4">Edit Project</h1>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+        <form method="post" action="@Url.Action("Edit", "Projects", new { area = "Admin" })" novalidate>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Id" value="@Model.Id">
+
+            <div class="mb-3">
+                <label class="form-label" for="title">Title</label>
+                <input class="form-control" id="title" name="Title" value="@Model.Title" maxlength="160" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="desc">Description</label>
+                <textarea class="form-control" id="desc" name="Description" rows="6" required>@Model.Description</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="images">Images (one filename per line)</label>
+                <textarea class="form-control" id="images" name="ImagesText" rows="5">@Model.ImagesText</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="projectLink">Project Link</label>
+                <input class="form-control" id="projectLink" name="ProjectLink" value="@Model.ProjectLink" maxlength="255">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="tech">Tech Stack (one per line)</label>
+                <textarea class="form-control" id="tech" name="TechStackText" rows="5">@Model.TechStackText</textarea>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="displayOrder">Display Order</label>
+                    <input class="form-control" id="displayOrder" name="DisplayOrder" type="number" value="@Model.DisplayOrder">
+                </div>
+            </div>
+
+            <div class="form-check mt-3 mb-4">
+                <input class="form-check-input" id="isActive" name="IsActive" type="checkbox" value="true" @(Model.IsActive ? "checked" : string.Empty)>
+                <label class="form-check-label" for="isActive">Active</label>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-danger" type="submit">Save</button>
+                <a class="btn btn-outline-secondary" href="@Url.Action("Index", "Projects", new { area = "Admin" })">Back</a>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,65 @@
+﻿@model List<PortfolioWeb.Models.HomeContentRecord>
+
+@{
+    ViewData["Title"] = "Home Content";
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Home Content</h1>
+        <div class="text-muted">Manage hero content and highlights</div>
+    </div>
+    <a class="btn btn-danger" href="@Url.Action("Create", "HomeContent", new { area = "Admin" })"><i class="bi bi-plus-lg me-1"></i>New</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 90px;">ID</th>
+                    <th>Hero Title</th>
+                    <th style="width: 110px;">Active</th>
+                    <th style="width: 220px;">Updated</th>
+                    <th style="width: 210px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model == null || Model.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No records yet.</td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var row in Model)
+                    {
+                        <tr>
+                            <td>@row.Id</td>
+                            <td>@row.HeroTitle</td>
+                            <td>
+                                @if (row.IsActive == 1)
+                                {
+                                    <span class="badge text-bg-success">Yes</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">No</span>
+                                }
+                            </td>
+                            <td>@row.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-dark" href="@Url.Action("Edit", "HomeContent", new { area = "Admin", id = row.Id })">Edit</a>
+                                <form method="post" action="@Url.Action("Delete", "HomeContent", new { area = "Admin", id = row.Id })" class="d-inline" onsubmit="return confirm('Delete this record?');">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

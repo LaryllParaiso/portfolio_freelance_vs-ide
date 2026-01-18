@@ -1,0 +1,520 @@
+﻿@using System
+@using System.Collections.Generic
+@using System.IO
+@using System.Net
+@using System.Text.Json
+@model PortfolioWeb.Models.HomePageViewModel
+
+@{
+    ViewData["Title"] = "Portfolio";
+
+    string UploadUrl(string? maybePath)
+    {
+        var file = System.IO.Path.GetFileName(maybePath ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(file))
+        {
+            return string.Empty;
+        }
+
+        return Url.Content("~/uploads/" + file);
+    }
+
+    string EncodeWithBr(string? text)
+    {
+        var encoded = WebUtility.HtmlEncode(text ?? string.Empty);
+        return encoded.Replace("\r\n", "<br />").Replace("\n", "<br />");
+    }
+
+    string GetServiceIcon(string? title)
+    {
+        var t = (title ?? string.Empty).ToLowerInvariant();
+        if (t.Contains("mobile")) return "bi-phone";
+        if (t.Contains("backend") || t.Contains("api")) return "bi-stack";
+        if (t.Contains("ui") || t.Contains("design")) return "bi-palette2";
+        if (t.Contains("commerce") || t.Contains("e-commerce")) return "bi-cart3";
+        if (t.Contains("performance") || t.Contains("seo")) return "bi-speedometer2";
+        return "bi-globe2";
+    }
+
+    string GetProjectCategorySlug(string? title, IEnumerable<string>? techStack)
+    {
+        var hay = ((title ?? string.Empty) + " " + string.Join(" ", techStack ?? Array.Empty<string>())).ToLowerInvariant();
+
+        if (hay.Contains("e-commerce") || hay.Contains("ecommerce") || hay.Contains("stripe") || hay.Contains("checkout")) return "e-commerce";
+        if (hay.Contains("landing")) return "landing-pages";
+        if (hay.Contains(" api") || hay.Contains("api ") || hay.Contains("rest") || hay.Contains("graphql")) return "apis";
+        return "web-apps";
+    }
+
+    var projectCategoryLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["all"] = "All",
+        ["web-apps"] = "Web Apps",
+        ["e-commerce"] = "E-Commerce",
+        ["landing-pages"] = "Landing Pages",
+        ["apis"] = "APIs",
+    };
+
+    var contactSuccess = TempData["ContactSuccess"] as string;
+
+    var contactErrors = new List<string>();
+    var contactErrorsJson = TempData["ContactErrors"] as string;
+    if (!string.IsNullOrWhiteSpace(contactErrorsJson))
+    {
+        try
+        {
+            contactErrors = JsonSerializer.Deserialize<List<string>>(contactErrorsJson) ?? new List<string>();
+        }
+        catch
+        {
+            contactErrors = new List<string>();
+        }
+    }
+
+    var contactName = TempData["ContactOldName"] as string ?? string.Empty;
+    var contactEmail = TempData["ContactOldEmail"] as string ?? string.Empty;
+    var contactMessage = TempData["ContactOldMessage"] as string ?? string.Empty;
+}
+
+<main>
+    @if (Model.ShowHomeHero)
+    {
+        <section id="home" class="hero-placeholder d-flex align-items-center">
+            <div class="container py-4 py-lg-5">
+                <div class="row">
+                    <div class="col-lg-9">
+                        <h1 class="display-4 fw-bold mb-3 gradient-text" data-aos="fade-up">@Model.HeroTitle</h1>
+                        <p class="lead mb-4" data-aos="fade-up" data-aos-delay="100">@Model.HeroSubtitle</p>
+                        <div class="d-flex gap-2 flex-wrap mb-4" data-aos="fade-up" data-aos-delay="200">
+                            <a class="btn btn-danger" href="@Model.HeroCtaLink">@Model.HeroCtaText <i class="bi bi-arrow-right ms-1"></i></a>
+                            <a class="btn btn-outline-light js-scroll" href="#contact">Contact Me</a>
+                        </div>
+                    </div>
+                </div>
+
+                @if (Model.Highlights != null && Model.Highlights.Count > 0)
+                {
+                    <div class="row g-3 mt-2">
+                        @foreach (var highlight in Model.Highlights)
+                        {
+                            <div class="col-12 col-md-4">
+                                <div class="p-3 rounded-4 hero-highlight-card" data-aos="zoom-in">
+                                    <div class="fw-semibold">@highlight</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <a id="scrollIndicator" class="scroll-indicator js-scroll" href="#about" aria-label="Scroll to About"></a>
+        </section>
+    }
+    else
+    {
+        <section id="home"></section>
+    }
+
+    @if (Model.ShowAbout)
+    {
+        <section id="about" class="py-5 bg-light">
+            <div class="container py-4">
+                <div class="text-center mb-5" data-aos="fade-up">
+                    <div class="section-pill mb-3">About Me</div>
+                    <h2 class="mb-2">Get to Know Me</h2>
+                    <div class="text-muted">Passionate developer with a keen eye for design and a love for clean code.</div>
+                </div>
+
+                <div class="row g-4 align-items-center">
+                    <div class="col-lg-5">
+                        <div class="about-media" data-aos="zoom-in">
+                            @if (!string.IsNullOrWhiteSpace(Model.AboutProfileImage))
+                            {
+                                <img class="about-media-img" src="@UploadUrl(Model.AboutProfileImage)" alt="Profile photo" loading="lazy" decoding="async">
+                            }
+                            else
+                            {
+                                <div class="about-media-placeholder" aria-hidden="true"></div>
+                            }
+
+                            <div class="about-exp-badge" aria-label="Years of experience">
+                                <div class="about-exp-num">5+</div>
+                                <div class="about-exp-sub">Years of Experience</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-7">
+                        <div class="about-copy" data-aos="fade-up" data-aos-delay="100">
+                            <h3 class="about-copy-title">Building the web, one line at a time</h3>
+                            <div class="about-copy-text">@Html.Raw(EncodeWithBr(Model.AboutBio))</div>
+                        </div>
+
+                        @if (Model.AboutSkillBars != null && Model.AboutSkillBars.Count > 0)
+                        {
+                            <div class="about-skills" data-aos="fade-up" data-aos-delay="150">
+                                <div class="about-skills-title">My Skills</div>
+                                <div class="d-grid gap-3">
+                                    @foreach (var sb in Model.AboutSkillBars)
+                                    {
+                                        <div class="skill-row">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div class="skill-label">@sb.Label</div>
+                                                <div class="skill-pct" data-target="@sb.Percent">0%</div>
+                                            </div>
+                                            <div class="skill-track" role="progressbar" aria-valuenow="@sb.Percent" aria-valuemin="0" aria-valuemax="100">
+                                                <div class="skill-fill @sb.PercentClass"></div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        @if (Model.AboutExperience != null && Model.AboutExperience.Count > 0)
+        {
+            <section id="journey" class="py-5">
+                <div class="container py-4">
+                    <div class="text-center mb-5" data-aos="fade-up">
+                        <h2 class="mb-0">My Journey</h2>
+                    </div>
+
+                    <div class="journey" data-aos="fade-up">
+                        <div class="journey-line" aria-hidden="true"></div>
+                        @for (var idx = 0; idx < Model.AboutExperience.Count; idx++)
+                        {
+                            var exp = Model.AboutExperience[idx];
+                            var side = (idx % 2 == 0) ? "is-left" : "is-right";
+
+                            <div class="journey-item @side">
+                                <div class="journey-dot" aria-hidden="true"></div>
+                                <div class="journey-card">
+                                    @if (!string.IsNullOrWhiteSpace(exp.Year))
+                                    {
+                                        <div class="journey-year"><i class="bi bi-briefcase"></i> @exp.Year</div>
+                                    }
+                                    <div class="journey-role">@(string.IsNullOrWhiteSpace(exp.Role) ? "Experience" : exp.Role)</div>
+                                    @if (!string.IsNullOrWhiteSpace(exp.Company))
+                                    {
+                                        <div class="journey-company">@exp.Company</div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(exp.Description))
+                                    {
+                                        <div class="journey-desc">@exp.Description</div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </section>
+        }
+    }
+    else
+    {
+        <section id="about"></section>
+    }
+
+    <section id="services" class="py-5 bg-light">
+        <div class="container py-4">
+            <div class="text-center mb-5" data-aos="fade-up">
+                <div class="section-pill mb-3">What I Offer</div>
+                <h2 class="mb-2">My Services</h2>
+                <div class="text-muted">I provide end-to-end development services to bring your digital ideas to life.</div>
+            </div>
+
+            @if (Model.Services != null && Model.Services.Count > 0)
+            {
+                <div class="row g-4">
+                    @foreach (var service in Model.Services)
+                    {
+                        var icon = GetServiceIcon(service.Title);
+
+                        <div class="col-md-6 col-lg-4">
+                            <div class="service-card2" data-aos="fade-up">
+                                <div class="service-card2-top"></div>
+                                <div class="service-card2-body">
+                                    <div class="service-icon"><i class="bi @icon"></i></div>
+                                    <h3 class="service-title2">@service.Title</h3>
+                                    @if (!string.IsNullOrWhiteSpace(service.Description))
+                                    {
+                                        <div class="service-desc2">@service.Description</div>
+                                    }
+
+                                    @if (service.Tags != null && service.Tags.Count > 0)
+                                    {
+                                        <div class="service-tags">
+                                            @foreach (var tag in service.Tags)
+                                            {
+                                                <span class="service-chip">@tag</span>
+                                            }
+                                        </div>
+                                    }
+
+                                    <div class="service-divider" aria-hidden="true"></div>
+
+                                    <div class="service-footer">
+                                        @if (!string.IsNullOrWhiteSpace(service.Pricing))
+                                        {
+                                            <div class="service-price">@service.Pricing</div>
+                                        }
+                                        <a class="service-cta js-scroll" href="#contact">Get Started <i class="bi bi-arrow-right"></i></a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="services-bottom" data-aos="fade-up">
+                    <div class="text-muted">Need something custom? Let's discuss your project requirements.</div>
+                    <a class="btn btn-danger js-scroll services-talk-btn" href="#contact">Let's Talk</a>
+                </div>
+            }
+            else
+            {
+                <div class="border rounded-4 p-4 bg-white" data-aos="fade-up">
+                    <div class="fw-semibold mb-1">No services yet</div>
+                    <div class="text-muted mb-3">Want to discuss what you need? Send me a message.</div>
+                    <a class="btn btn-danger js-scroll" href="#contact">Contact Me</a>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section id="portfolio" class="py-5">
+        <div class="container py-4">
+            <div class="text-center mb-5" data-aos="fade-up">
+                <div class="section-pill mb-3">My Work</div>
+                <h2 class="mb-2">Featured Projects</h2>
+                <div class="text-muted">A selection of my recent work across various industries and technologies.</div>
+            </div>
+
+            @if (Model.Projects != null && Model.Projects.Count > 0)
+            {
+                <div class="project-filters">
+                    @foreach (var kvp in projectCategoryLabels)
+                    {
+                        var slug = kvp.Key;
+                        var label = kvp.Value;
+                        var activeClass = slug.Equals("all", StringComparison.OrdinalIgnoreCase) ? " is-active" : string.Empty;
+
+                        <button class="project-filter-btn@activeClass" type="button" data-filter="@slug">@label</button>
+                    }
+                </div>
+
+                <div class="row g-4">
+                    @foreach (var project in Model.Projects)
+                    {
+                        var modalId = "projectModal-" + project.Id;
+                        var coverImage = (project.Images != null && project.Images.Count > 0) ? System.IO.Path.GetFileName(project.Images[0]) : null;
+
+                        var desc = project.Description ?? string.Empty;
+                        var excerpt = desc.Length > 110 ? desc.Substring(0, 110) + "..." : desc;
+
+                        var category = GetProjectCategorySlug(project.Title, project.TechStack);
+                        var categoryLabel = projectCategoryLabels.TryGetValue(category, out var lbl) ? lbl : "Web Apps";
+
+                        <div class="col-md-6 col-lg-4 project-item" data-category="@category">
+                            <button type="button" class="project-card2" data-bs-toggle="modal" data-bs-target="#@modalId">
+                                <div class="project-card2-media">
+                                    @if (!string.IsNullOrWhiteSpace(coverImage))
+                                    {
+                                        <img class="project-card2-img" src="@Url.Content("~/uploads/" + coverImage)" alt="@project.Title" loading="lazy" decoding="async">
+                                    }
+                                    <div class="project-card2-overlay">
+                                        <div class="project-card2-pill">@categoryLabel</div>
+                                        <div class="project-card2-title">@project.Title</div>
+                                        @if (!string.IsNullOrWhiteSpace(excerpt))
+                                        {
+                                            <div class="project-card2-desc">@excerpt</div>
+                                        }
+
+                                        @if (project.TechStack != null && project.TechStack.Count > 0)
+                                        {
+                                            <div class="project-card2-tags">
+                                                @foreach (var tech in project.TechStack.Count > 3 ? project.TechStack.GetRange(0, 3) : project.TechStack)
+                                                {
+                                                    <span class="project-chip">@tech</span>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div class="modal fade" id="@modalId" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                                <div class="modal-content project-modal">
+                                    <button type="button" class="project-modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+
+                                    @if (!string.IsNullOrWhiteSpace(coverImage))
+                                    {
+                                        <div class="project-modal-hero">
+                                            <img class="project-modal-hero-img" src="@Url.Content("~/uploads/" + coverImage)" alt="@project.Title" loading="lazy" decoding="async">
+                                        </div>
+                                    }
+
+                                    <div class="project-modal-body">
+                                        <div class="project-modal-pill">@categoryLabel</div>
+                                        <div class="project-modal-title">@project.Title</div>
+
+                                        @if (!string.IsNullOrWhiteSpace(project.Description))
+                                        {
+                                            <div class="project-modal-desc">@Html.Raw(EncodeWithBr(project.Description))</div>
+                                        }
+
+                                        @if (project.TechStack != null && project.TechStack.Count > 0)
+                                        {
+                                            <div class="project-modal-tech">
+                                                @foreach (var tech in project.TechStack)
+                                                {
+                                                    <span class="project-chip">@tech</span>
+                                                }
+                                            </div>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(project.ProjectLink))
+                                        {
+                                            <div class="project-modal-actions">
+                                                <a class="btn btn-danger" href="@project.ProjectLink" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right me-2"></i>Live Demo</a>
+                                                <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Close</button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="project-modal-actions">
+                                                <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Close</button>
+                                            </div>
+                                        }
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="border rounded-4 p-4 bg-white" data-aos="fade-up">
+                    <div class="fw-semibold mb-1">No projects yet</div>
+                    <div class="text-muted mb-3">I’m currently building new work. Want to collaborate?</div>
+                    <a class="btn btn-danger js-scroll" href="#contact">Contact Me</a>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section id="contact" class="py-5 bg-light">
+        <div class="container py-4">
+            <div class="text-center mb-5" data-aos="fade-up">
+                <div class="contact-intro-pill mb-3">Get in Touch</div>
+                <h2 class="mb-3">Let's Work Together</h2>
+                <div class="text-muted">Have a project in mind? I'd love to hear about it. Send me a message and let's create something amazing together.</div>
+            </div>
+
+            <div class="row g-4 align-items-stretch">
+                <div class="col-lg-4">
+                    <div class="contact-info-card">
+                        <h3 class="h4 mb-2">Contact Information</h3>
+                        <div class="footer-muted mb-4">Fill up the form and I'll get back to you within 24 hours.</div>
+
+                        @if (!string.IsNullOrWhiteSpace(Model.AdminContactEmail))
+                        {
+                            <div class="contact-info-item">
+                                <div class="contact-info-icon" aria-hidden="true"><i class="bi bi-envelope"></i></div>
+                                <div>
+                                    <div class="contact-info-label">Email</div>
+                                    <div class="contact-info-value">@Model.AdminContactEmail</div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(Model.AdminContactPhone))
+                        {
+                            <div class="contact-info-item">
+                                <div class="contact-info-icon" aria-hidden="true"><i class="bi bi-telephone"></i></div>
+                                <div>
+                                    <div class="contact-info-label">Phone</div>
+                                    <div class="contact-info-value">@Model.AdminContactPhone</div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(Model.AdminContactLocation))
+                        {
+                            <div class="contact-info-item">
+                                <div class="contact-info-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></div>
+                                <div>
+                                    <div class="contact-info-label">Location</div>
+                                    <div class="contact-info-value">@Model.AdminContactLocation</div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (Model.AdminSocialLinks != null && Model.AdminSocialLinks.Count > 0)
+                        {
+                            <div class="contact-connect-title">Connect with me</div>
+                            <div class="contact-social">
+                                @foreach (var l in Model.AdminSocialLinks)
+                                {
+                                    <a href="@l.Url" target="_blank" rel="noopener noreferrer" aria-label="@(string.IsNullOrWhiteSpace(l.Label) ? "Social" : l.Label)">
+                                        <img src="@UploadUrl(l.Icon)" alt="@(string.IsNullOrWhiteSpace(l.Label) ? string.Empty : l.Label)" loading="lazy" decoding="async">
+                                    </a>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-lg-8">
+                    <div class="contact-form-card">
+                        @if (!string.IsNullOrWhiteSpace(contactSuccess))
+                        {
+                            <div class="alert alert-success" role="alert">
+                                @contactSuccess
+                            </div>
+                        }
+
+                        @if (contactErrors.Count > 0)
+                        {
+                            <div class="alert alert-danger" role="alert">
+                                <div class="fw-semibold mb-2">Please fix the following:</div>
+                                <ul class="mb-0">
+                                    @foreach (var err in contactErrors)
+                                    {
+                                        <li>@err</li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+
+                        <form method="post" action="@Url.Action("Contact", "Home")#contact" novalidate>
+                            @Html.AntiForgeryToken()
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <input class="form-control" id="name" name="Name" type="text" required maxlength="120" placeholder="Your Name" value="@contactName">
+                                </div>
+                                <div class="col-md-6">
+                                    <input class="form-control" id="email" name="Email" type="email" required maxlength="255" placeholder="Your Email" value="@contactEmail">
+                                </div>
+                                <div class="col-12">
+                                    <textarea class="form-control contact-textarea" id="message" name="Message" required maxlength="5000" placeholder="Your Message">@contactMessage</textarea>
+                                </div>
+                            </div>
+
+                            <button class="btn btn-danger w-100 contact-submit-btn mt-3" type="submit" data-loading-text="Sending..."><i class="bi bi-send me-2"></i>Send Message</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>

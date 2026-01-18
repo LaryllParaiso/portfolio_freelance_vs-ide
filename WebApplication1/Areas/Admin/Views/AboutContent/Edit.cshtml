@@ -1,0 +1,46 @@
+﻿@model PortfolioWeb.Areas.Admin.Models.AboutContentEditModel
+
+@{
+    ViewData["Title"] = "New About Content";
+}
+
+<h1 class="h3 mb-4">New About Content</h1>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+        <form method="post" action="@Url.Action("Create", "AboutContent", new { area = "Admin" })" novalidate>
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label class="form-label" for="bio">Bio</label>
+                <textarea class="form-control" id="bio" name="Bio" rows="6" required>@Model.Bio</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="profileImage">Profile Image (filename or path)</label>
+                <input class="form-control" id="profileImage" name="ProfileImage" value="@Model.ProfileImage" maxlength="255">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="skills">Skills (one per line)</label>
+                <textarea class="form-control" id="skills" name="SkillsText" rows="5">@Model.SkillsText</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="experience">Experience (JSON)</label>
+                <textarea class="form-control" id="experience" name="ExperienceJson" rows="6">@Model.ExperienceJson</textarea>
+                <div class="form-text">Store JSON array of objects (year, role, company, description).</div>
+            </div>
+
+            <div class="form-check mb-4">
+                <input class="form-check-input" id="isActive" name="IsActive" type="checkbox" value="true" @(Model.IsActive ? "checked" : string.Empty)>
+                <label class="form-check-label" for="isActive">Active</label>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-danger" type="submit">Save</button>
+                <a class="btn btn-outline-secondary" href="@Url.Action("Index", "AboutContent", new { area = "Admin" })">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

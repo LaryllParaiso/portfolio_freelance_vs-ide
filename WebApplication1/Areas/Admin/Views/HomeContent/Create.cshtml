@@ -1,0 +1,51 @@
+﻿@model PortfolioWeb.Areas.Admin.Models.HomeContentEditModel
+
+@{
+    ViewData["Title"] = "New Home Content";
+}
+
+<h1 class="h3 mb-4">New Home Content</h1>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+        <form method="post" action="@Url.Action("Create", "HomeContent", new { area = "Admin" })" novalidate>
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label class="form-label" for="heroTitle">Hero Title</label>
+                <input class="form-control" id="heroTitle" name="HeroTitle" value="@Model.HeroTitle" maxlength="255" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="heroSubtitle">Hero Subtitle</label>
+                <input class="form-control" id="heroSubtitle" name="HeroSubtitle" value="@Model.HeroSubtitle" maxlength="255" required>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="heroCtaText">CTA Text</label>
+                    <input class="form-control" id="heroCtaText" name="HeroCtaText" value="@Model.HeroCtaText" maxlength="80" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="heroCtaLink">CTA Link</label>
+                    <input class="form-control" id="heroCtaLink" name="HeroCtaLink" value="@Model.HeroCtaLink" maxlength="255" required>
+                </div>
+            </div>
+
+            <div class="mt-3 mb-3">
+                <label class="form-label" for="highlights">Highlights (one per line)</label>
+                <textarea class="form-control" id="highlights" name="HighlightsText" rows="5">@Model.HighlightsText</textarea>
+            </div>
+
+            <div class="form-check mb-4">
+                <input class="form-check-input" id="isActive" name="IsActive" type="checkbox" value="true" @(Model.IsActive ? "checked" : string.Empty)>
+                <label class="form-check-label" for="isActive">Active</label>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-danger" type="submit">Save</button>
+                <a class="btn btn-outline-secondary" href="@Url.Action("Index", "HomeContent", new { area = "Admin" })">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

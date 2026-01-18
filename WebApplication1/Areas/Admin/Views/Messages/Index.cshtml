@@ -1,0 +1,57 @@
+﻿@model List<PortfolioWeb.Models.ContactMessageRecord>
+
+@{
+    ViewData["Title"] = "Messages";
+}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">Messages</h1>
+        <div class="text-muted">Contact form submissions</div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 90px;">ID</th>
+                    <th style="width: 220px;">Name</th>
+                    <th style="width: 260px;">Email</th>
+                    <th>Message</th>
+                    <th style="width: 220px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model == null || Model.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No messages yet.</td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var row in Model)
+                    {
+                        var preview = (row.Message ?? string.Empty);
+                        preview = preview.Length > 90 ? preview.Substring(0, 90) + "..." : preview;
+                        <tr>
+                            <td>@row.Id</td>
+                            <td>@row.Name</td>
+                            <td>@row.Email</td>
+                            <td>@preview</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-dark" href="@Url.Action("Details", "Messages", new { area = "Admin", id = row.Id })">View</a>
+                                <form method="post" action="@Url.Action("Delete", "Messages", new { area = "Admin", id = row.Id })" class="d-inline" onsubmit="return confirm('Delete this message?');">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

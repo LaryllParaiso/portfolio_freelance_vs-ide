@@ -1,0 +1,19 @@
+﻿@model PortfolioWeb.Models.ErrorViewModel
+
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="container py-5">
+    <h1 class="mb-3">Something went wrong.</h1>
+    <p class="text-muted mb-4">An unexpected error occurred while processing your request.</p>
+
+    @if (Model?.ShowRequestId == true)
+    {
+        <p class="mb-0"><strong>Request ID:</strong> <code>@Model.RequestId</code></p>
+    }
+
+    <div class="mt-4">
+        <a class="btn btn-danger" href="@Url.Action("Index", "Home")">Back to Home</a>
+    </div>
+</div>

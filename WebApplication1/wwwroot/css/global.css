@@ -1,0 +1,207 @@
+html {
+    font-size: 16px;
+    scroll-behavior: smooth
+}
+
+*, :before, :after {
+    box-sizing: border-box
+}
+
+body {
+    font-family: var(--font-body,'Inter',sans-serif);
+    color: var(--text-dark,#2d3436);
+    line-height: 1.65;
+    background: #fff
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading,'Poppins',sans-serif);
+    letter-spacing: -0.02em
+}
+
+h1 {
+    font-weight: 700;
+    font-size: clamp(2rem,5vw,3.5rem);
+    line-height: 1.15
+}
+
+code, pre, kbd, samp {
+    font-family: var(--font-code,'Fira Code',monospace)
+}
+
+.mw-720 {
+    max-width: 720px
+}
+
+.mw-360 {
+    max-width: 360px
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+    transition: color var(--transition-speed,0.3s) var(--transition-ease,ease)
+}
+
+    a:hover {
+        color: var(--color-cta,#e94560)
+    }
+
+:focus-visible {
+    outline: 3px solid rgba(233,69,96,0.45);
+    outline-offset: 2px;
+    border-radius: 8px
+}
+
+.btn {
+    transition: transform var(--transition-speed,0.3s) var(--transition-ease,ease),box-shadow var(--transition-speed,0.3s) var(--transition-ease,ease),background var(--transition-speed,0.3s) var(--transition-ease,ease),border-color var(--transition-speed,0.3s) var(--transition-ease,ease)
+}
+
+    .btn:disabled {
+        opacity: .7;
+        cursor: not-allowed
+    }
+
+.btn-danger {
+    background: var(--color-cta,#e94560);
+    border-color: var(--color-cta,#e94560);
+    border-radius: 999px;
+    padding: .75rem 1.25rem;
+    box-shadow: var(--shadow-md,0 4px 6px rgba(0,0,0,.1))
+}
+
+    .btn-danger:hover {
+        background: #ff5875;
+        border-color: #ff5875;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg,0 10px 25px rgba(0,0,0,.15))
+    }
+
+.btn-outline-danger {
+    border-radius: 999px
+}
+
+.btn-outline-dark, .btn-outline-secondary {
+    border-radius: 999px
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--color-cta,#e94560);
+    box-shadow: 0 0 0 .25rem rgba(233,69,96,.15)
+}
+
+.form-check-input:focus {
+    border-color: var(--color-cta,#e94560);
+    box-shadow: 0 0 0 .25rem rgba(233,69,96,.15)
+}
+
+.form-check-input:checked {
+    background-color: var(--color-cta,#e94560);
+    border-color: var(--color-cta,#e94560)
+}
+
+.toast-container {
+    position: fixed;
+    top: 2rem;
+    right: 2rem;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem
+}
+
+.toast {
+    box-shadow: var(--shadow-lg,0 10px 25px rgba(0,0,0,.15));
+    border-radius: 12px;
+    overflow: hidden
+}
+
+    .toast.text-bg-success {
+        border-left: 4px solid #27ae60
+    }
+
+    .toast.text-bg-danger {
+        border-left: 4px solid #e74c3c
+    }
+
+    .toast.text-bg-warning {
+        border-left: 4px solid #f39c12
+    }
+
+    .toast.text-bg-info {
+        border-left: 4px solid #3498db
+    }
+
+.gradient-text {
+    background: linear-gradient(135deg,var(--color-cta,#e94560),#ff7b9c);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent
+}
+
+.ui-toast {
+    min-width: 300px;
+    transform: translateX(400px);
+    animation: slideInRight .4s var(--transition-ease,cubic-bezier(0.4,0,0.2,1)) forwards
+}
+
+    .ui-toast .toast-progress {
+        height: 3px;
+        background: currentColor;
+        opacity: .3;
+        width: 100%;
+        animation: shrink 4s linear forwards
+    }
+
+@keyframes slideInRight {
+    to {
+        transform: translateX(0)
+    }
+}
+
+@keyframes shrink {
+    to {
+        width: 0
+    }
+}
+
+@media (max-width:640px) {
+    .toast-container {
+        top: 1rem;
+        right: 1rem;
+        left: 1rem
+    }
+
+    .ui-toast {
+        min-width: auto;
+        width: 100%
+    }
+}
+
+.toast-progress {
+    height: 3px;
+    background: rgba(255,255,255,.55);
+    animation: toastProgress 4s linear forwards
+}
+
+@keyframes toastProgress {
+    from {
+        width: 100%
+    }
+
+    to {
+        width: 0%
+    }
+}
+
+code, kbd, pre, samp {
+    font-family: var(--font-code,ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace)
+}
+
+pre {
+    background: #0b1020;
+    color: #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    overflow: auto
+}

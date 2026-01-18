@@ -1,0 +1,57 @@
+﻿@model PortfolioWeb.Areas.Admin.Models.AdminLoginInput
+
+@{
+    ViewData["Title"] = "Admin Login";
+    var returnUrl = ViewData["ReturnUrl"] as string;
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4 p-md-5">
+                <div class="text-center mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-dark text-white" style="width: 54px; height: 54px;">
+                        <i class="bi bi-shield-lock"></i>
+                    </div>
+                    <h1 class="h4 fw-bold mt-3 mb-1">Admin Login</h1>
+                    <div class="text-muted">Sign in to manage your portfolio</div>
+                </div>
+
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    var errors = ViewData.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Where(m => !string.IsNullOrWhiteSpace(m)).ToList();
+                    if (errors.Count > 0)
+                    {
+                        <div class="alert alert-danger">
+                            <div class="fw-semibold mb-2">Please fix the following:</div>
+                            <ul class="mb-0">
+                                @foreach (var e in errors)
+                                {
+                                    <li>@e</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                }
+
+                <form method="post" action="@Url.Action("Login", "Account", new { area = "Admin", returnUrl = returnUrl })" novalidate>
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label class="form-label" for="email">Email</label>
+                        <input class="form-control" id="email" name="Email" type="email" value="@Model.Email" autocomplete="email" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label" for="password">Password</label>
+                        <input class="form-control" id="password" name="Password" type="password" autocomplete="current-password" required>
+                    </div>
+
+                    <button class="btn btn-danger w-100" type="submit" data-loading-text="Signing in...">Login</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="text-center small text-muted mt-3">&copy; @DateTime.Now.Year</div>
+    </div>
+</div>

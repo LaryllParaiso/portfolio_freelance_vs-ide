@@ -1,0 +1,79 @@
+﻿@model PortfolioWeb.Areas.Admin.Models.AdminSignupInput
+
+@{
+    ViewData["Title"] = "Create Admin";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4 p-md-5">
+                <div class="text-center mb-4">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-dark text-white" style="width: 54px; height: 54px;">
+                        <i class="bi bi-person-plus"></i>
+                    </div>
+                    <h1 class="h4 fw-bold mt-3 mb-1">Create Admin</h1>
+                    <div class="text-muted">One-time setup for your portfolio CMS</div>
+                </div>
+
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    var errors = ViewData.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Where(m => !string.IsNullOrWhiteSpace(m)).ToList();
+                    if (errors.Count > 0)
+                    {
+                        <div class="alert alert-danger">
+                            <div class="fw-semibold mb-2">Please fix the following:</div>
+                            <ul class="mb-0">
+                                @foreach (var e in errors)
+                                {
+                                    <li>@e</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                }
+
+                <form method="post" action="@Url.Action("Signup", "Account", new { area = "Admin" })" novalidate>
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label class="form-label" for="username">Username</label>
+                        <input class="form-control" id="username" name="Username" type="text" value="@Model.Username" autocomplete="username" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="email">Email</label>
+                        <input class="form-control" id="email" name="Email" type="email" value="@Model.Email" autocomplete="email" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="phone">Phone</label>
+                        <input class="form-control" id="phone" name="Phone" type="text" value="@Model.Phone" autocomplete="tel">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="location">Location</label>
+                        <input class="form-control" id="location" name="Location" type="text" value="@Model.Location" autocomplete="address-level2">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="password">Password</label>
+                        <input class="form-control" id="password" name="Password" type="password" autocomplete="new-password" required minlength="8">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label" for="confirmPassword">Confirm Password</label>
+                        <input class="form-control" id="confirmPassword" name="ConfirmPassword" type="password" autocomplete="new-password" required minlength="8">
+                    </div>
+
+                    <button class="btn btn-danger w-100" type="submit" data-loading-text="Creating...">Create Admin</button>
+                    <div class="text-center mt-3">
+                        <a class="link-secondary" href="@Url.Action("Login", "Account", new { area = "Admin" })">Go to login</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="text-center small text-muted mt-3">&copy; @DateTime.Now.Year</div>
+    </div>
+</div>
