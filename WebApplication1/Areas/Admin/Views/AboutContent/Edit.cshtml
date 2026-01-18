@@ -1,15 +1,23 @@
 ﻿@model PortfolioWeb.Areas.Admin.Models.AboutContentEditModel
 
 @{
-    ViewData["Title"] = "New About Content";
+    ViewData["Title"] = "Edit About Content";
 }
 
-<h1 class="h3 mb-4">New About Content</h1>
+<h1 class="h3 mb-4">Edit About Content</h1>
 
 <div class="card border-0 shadow-sm">
     <div class="card-body p-4">
-        <form method="post" action="@Url.Action("Create", "AboutContent", new { area = "Admin" })" novalidate>
+        <form method="post" action="@Url.Action("Edit", "AboutContent", new { area = "Admin" })" enctype="multipart/form-data" novalidate>
             @Html.AntiForgeryToken()
+            <input type="hidden" name="Id" value="@Model.Id">
+
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="alert alert-danger" role="alert">
+                    @Html.ValidationSummary(excludePropertyErrors: false)
+                </div>
+            }
 
             <div class="mb-3">
                 <label class="form-label" for="bio">Bio</label>
@@ -17,7 +25,13 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label" for="profileImage">Profile Image (filename or path)</label>
+                <label class="form-label" for="profileImageFile">Profile Image (upload)</label>
+                <input class="form-control" id="profileImageFile" name="ProfileImageFile" type="file" accept="image/*">
+                <div class="form-text">Uploads to <code>/uploads</code>. Leave blank to keep the filename below.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="profileImage">Profile Image (filename)</label>
                 <input class="form-control" id="profileImage" name="ProfileImage" value="@Model.ProfileImage" maxlength="255">
             </div>
 
@@ -27,9 +41,43 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label" for="experience">Experience (JSON)</label>
-                <textarea class="form-control" id="experience" name="ExperienceJson" rows="6">@Model.ExperienceJson</textarea>
-                <div class="form-text">Store JSON array of objects (year, role, company, description).</div>
+                <label class="form-label">My Journey</label>
+
+                <div id="experienceRows" class="d-flex flex-column gap-2">
+                    @for (var i = 0; i < (Model.ExperienceItems?.Count ?? 0); i++)
+                    {
+                        <div class="border rounded-3 p-3 experience-row">
+                            <div class="row g-2">
+                                <div class="col-md-2">
+                                    <input class="form-control" name="ExperienceItems[@i].Year" value="@Model.ExperienceItems[i].Year" placeholder="Year">
+                                </div>
+                                <div class="col-md-4">
+                                    <input class="form-control" name="ExperienceItems[@i].Role" value="@Model.ExperienceItems[i].Role" placeholder="Role">
+                                </div>
+                                <div class="col-md-6">
+                                    <input class="form-control" name="ExperienceItems[@i].Company" value="@Model.ExperienceItems[i].Company" placeholder="Company">
+                                </div>
+                            </div>
+
+                            <div class="mt-2">
+                                <textarea class="form-control" name="ExperienceItems[@i].Description" rows="3" placeholder="Description">@Model.ExperienceItems[i].Description</textarea>
+                            </div>
+
+                            <div class="mt-2 d-flex justify-content-end">
+                                <button class="btn btn-sm btn-outline-danger js-remove-exp" type="button">Remove</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-dark" id="addExperienceBtn" type="button">Add item</button>
+                </div>
+
+                <details class="mt-3">
+                    <summary>Advanced: edit JSON directly</summary>
+                    <textarea class="form-control mt-2" id="experience" name="ExperienceJson" rows="6">@Model.ExperienceJson</textarea>
+                </details>
             </div>
 
             <div class="form-check mb-4">
@@ -39,8 +87,77 @@
 
             <div class="d-flex gap-2">
                 <button class="btn btn-danger" type="submit">Save</button>
-                <a class="btn btn-outline-secondary" href="@Url.Action("Index", "AboutContent", new { area = "Admin" })">Cancel</a>
+                <a class="btn btn-outline-secondary" href="@Url.Action("Index", "AboutContent", new { area = "Admin" })">Back</a>
             </div>
         </form>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.querySelector('form');
+            const rows = document.getElementById('experienceRows');
+            const addBtn = document.getElementById('addExperienceBtn');
+            const template = document.getElementById('experienceTemplate');
+
+            function reindex() {
+                const all = rows.querySelectorAll('.experience-row');
+                all.forEach((row, idx) => {
+                    row.querySelectorAll('[name^="ExperienceItems["]').forEach((el) => {
+                        el.name = el.name.replace(/ExperienceItems\[\d+\]/, 'ExperienceItems[' + idx + ']');
+                    });
+                });
+            }
+
+            function removeRow(btn) {
+                const row = btn.closest('.experience-row');
+                if (!row) return;
+                if (rows.querySelectorAll('.experience-row').length <= 1) return;
+                row.remove();
+                reindex();
+            }
+
+            rows.addEventListener('click', function (e) {
+                const target = e.target;
+                if (target && target.classList && target.classList.contains('js-remove-exp')) {
+                    removeRow(target);
+                }
+            });
+
+            addBtn.addEventListener('click', function () {
+                const current = rows.querySelectorAll('.experience-row').length;
+                const html = template.innerHTML.replaceAll('__index__', String(current));
+                rows.insertAdjacentHTML('beforeend', html);
+            });
+
+            form.addEventListener('submit', function () {
+                reindex();
+            });
+        })();
+    </script>
+
+    <template id="experienceTemplate">
+        <div class="border rounded-3 p-3 experience-row">
+            <div class="row g-2">
+                <div class="col-md-2">
+                    <input class="form-control" name="ExperienceItems[__index__].Year" placeholder="Year">
+                </div>
+                <div class="col-md-4">
+                    <input class="form-control" name="ExperienceItems[__index__].Role" placeholder="Role">
+                </div>
+                <div class="col-md-6">
+                    <input class="form-control" name="ExperienceItems[__index__].Company" placeholder="Company">
+                </div>
+            </div>
+
+            <div class="mt-2">
+                <textarea class="form-control" name="ExperienceItems[__index__].Description" rows="3" placeholder="Description"></textarea>
+            </div>
+
+            <div class="mt-2 d-flex justify-content-end">
+                <button class="btn btn-sm btn-outline-danger js-remove-exp" type="button">Remove</button>
+            </div>
+        </div>
+    </template>
+}

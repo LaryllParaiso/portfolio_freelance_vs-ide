@@ -495,7 +495,7 @@
                             </div>
                         }
 
-                        <form method="post" action="@Url.Action("Contact", "Home")#contact" novalidate>
+                        <form method="post" action="@Url.Action("Contact", "Home", new { area = "" })#contact" novalidate>
                             @Html.AntiForgeryToken()
 
                             <div class="row g-3">

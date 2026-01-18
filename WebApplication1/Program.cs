@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using Dapper;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.Extensions.FileProviders;
 using PortfolioWeb.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,6 +43,19 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
+var webUploads = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads");
+Directory.CreateDirectory(webUploads);
+
+var legacyUploads = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, "..", "uploads"));
+if (Directory.Exists(legacyUploads))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(legacyUploads),
+        RequestPath = "/uploads"
+    });
+}
+
 app.UseRouting();
 
 app.UseSession();
@@ -48,10 +63,10 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllerRoute(
+app.MapAreaControllerRoute(
     name: "admin",
-    pattern: "Admin/{controller=Dashboard}/{action=Index}/{id?}",
-    defaults: new { area = "Admin" });
+    areaName: "Admin",
+    pattern: "Admin/{controller=Dashboard}/{action=Index}/{id?}");
 
 app.MapControllerRoute(
     name: "default",

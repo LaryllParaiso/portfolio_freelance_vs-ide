@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using PortfolioWeb.Models;
 
 namespace PortfolioWeb.Areas.Admin.Models;
 
@@ -15,6 +17,8 @@ public class AboutContentEditModel
     public string? SkillsText { get; set; }
 
     public string? ExperienceJson { get; set; }
+
+    public List<AboutExperienceItem> ExperienceItems { get; set; } = new();
 
     public bool IsActive { get; set; } = true;
 }

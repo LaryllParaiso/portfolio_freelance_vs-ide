@@ -1122,7 +1122,7 @@ section {
 
 .project-card2-media {
     position: relative;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 3 / 2;
     background: #ffffff;
 }
 
@@ -1134,10 +1134,10 @@ section {
     transform: scale(1.03);
 }
 
-@supports not (aspect-ratio: 16 / 9) {
+@supports not (aspect-ratio: 3 / 2) {
     .project-card2-media {
         height: 0;
-        padding-top: 56.25%;
+        padding-top: 66.6667%;
     }
 
     .project-card2-img {
@@ -1218,6 +1218,9 @@ section {
     overflow: hidden;
     background: #ffffff;
     border: 1px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 2rem);
 }
 
 .project-modal-close {
@@ -1239,14 +1242,15 @@ section {
 }
 
 .project-modal-hero {
-    aspect-ratio: 21 / 9;
+    aspect-ratio: 16 / 9;
+    max-height: 50vh;
     background: #ffffff;
 }
 
-@supports not (aspect-ratio: 21 / 9) {
+@supports not (aspect-ratio: 16 / 9) {
     .project-modal-hero {
         height: 0;
-        padding-top: 42.857%;
+        padding-top: 56.25%;
         position: relative;
     }
 
@@ -1265,6 +1269,17 @@ section {
 
 .project-modal-body {
     padding: 1.25rem 1.25rem 1.4rem;
+    overflow-y: auto;
+}
+
+@media (max-width: 576px) {
+    .project-modal {
+        max-height: calc(100vh - 1rem);
+    }
+
+    .project-modal-hero {
+        max-height: 42vh;
+    }
 }
 
 .project-modal-pill {

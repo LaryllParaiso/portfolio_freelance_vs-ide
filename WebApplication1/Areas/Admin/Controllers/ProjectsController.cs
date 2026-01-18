@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using PortfolioWeb.Areas.Admin.Models;
@@ -18,11 +21,13 @@ public class ProjectsController : Controller
 {
     private readonly PortfolioRepository _repo;
     private readonly ILogger<ProjectsController> _logger;
+    private readonly IWebHostEnvironment _env;
 
-    public ProjectsController(PortfolioRepository repo, ILogger<ProjectsController> logger)
+    public ProjectsController(PortfolioRepository repo, ILogger<ProjectsController> logger, IWebHostEnvironment env)
     {
         _repo = repo;
         _logger = logger;
+        _env = env;
     }
 
     [HttpGet]
@@ -40,7 +45,7 @@ public class ProjectsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(ProjectEditModel input)
+    public async Task<IActionResult> Create(ProjectEditModel input, List<IFormFile>? ImageFiles)
     {
         if (!ModelState.IsValid)
         {
@@ -49,11 +54,14 @@ public class ProjectsController : Controller
 
         try
         {
+            var uploaded = await SaveUploadedImagesAsync(ImageFiles);
+            var mergedImages = MergeImageInputs(input.ImagesText, uploaded);
+
             var row = new ProjectRecord
             {
                 Title = input.Title?.Trim() ?? string.Empty,
                 Description = input.Description ?? string.Empty,
-                Images = NormalizeLinesToJsonArray(input.ImagesText),
+                Images = mergedImages,
                 ProjectLink = string.IsNullOrWhiteSpace(input.ProjectLink) ? null : input.ProjectLink.Trim(),
                 TechStack = NormalizeLinesToJsonArray(input.TechStackText),
                 DisplayOrder = input.DisplayOrder,
@@ -62,6 +70,12 @@ public class ProjectsController : Controller
 
             await _repo.InsertProjectAsync(row);
             return RedirectToAction("Index");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Project validation failed.");
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return View(input);
         }
         catch (Exception ex)
         {
@@ -97,7 +111,7 @@ public class ProjectsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(ProjectEditModel input)
+    public async Task<IActionResult> Edit(ProjectEditModel input, List<IFormFile>? ImageFiles)
     {
         if (!ModelState.IsValid)
         {
@@ -106,12 +120,15 @@ public class ProjectsController : Controller
 
         try
         {
+            var uploaded = await SaveUploadedImagesAsync(ImageFiles);
+            var mergedImages = MergeImageInputs(input.ImagesText, uploaded);
+
             var row = new ProjectRecord
             {
                 Id = input.Id,
                 Title = input.Title?.Trim() ?? string.Empty,
                 Description = input.Description ?? string.Empty,
-                Images = NormalizeLinesToJsonArray(input.ImagesText),
+                Images = mergedImages,
                 ProjectLink = string.IsNullOrWhiteSpace(input.ProjectLink) ? null : input.ProjectLink.Trim(),
                 TechStack = NormalizeLinesToJsonArray(input.TechStackText),
                 DisplayOrder = input.DisplayOrder,
@@ -120,6 +137,12 @@ public class ProjectsController : Controller
 
             await _repo.UpdateProjectAsync(row);
             return RedirectToAction("Index");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Project validation failed.");
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return View(input);
         }
         catch (Exception ex)
         {
@@ -180,5 +203,64 @@ public class ProjectsController : Controller
         {
             return json;
         }
+    }
+
+    private async Task<List<string>> SaveUploadedImagesAsync(List<IFormFile>? files)
+    {
+        var result = new List<string>();
+        if (files is null || files.Count == 0)
+        {
+            return result;
+        }
+
+        var uploadsPath = Path.Combine(_env.ContentRootPath, "wwwroot", "uploads");
+        Directory.CreateDirectory(uploadsPath);
+
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg" };
+
+        foreach (var file in files)
+        {
+            if (file is null || file.Length <= 0)
+            {
+                continue;
+            }
+
+            var ext = Path.GetExtension(file.FileName ?? string.Empty).ToLowerInvariant();
+            if (!allowed.Contains(ext))
+            {
+                throw new InvalidOperationException("Unsupported image type.");
+            }
+
+            var fileName = $"{Guid.NewGuid():N}{ext}";
+            var fullPath = Path.Combine(uploadsPath, fileName);
+
+            await using var stream = System.IO.File.Create(fullPath);
+            await file.CopyToAsync(stream);
+            result.Add(fileName);
+        }
+
+        return result;
+    }
+
+    private static string? MergeImageInputs(string? imagesText, List<string> uploaded)
+    {
+        var fromText = (imagesText ?? string.Empty)
+            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => Path.GetFileName((s ?? string.Empty).Trim()))
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToList();
+
+        var merged = fromText
+            .Concat(uploaded.Select(s => Path.GetFileName((s ?? string.Empty).Trim())))
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (merged.Count == 0)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Serialize(merged);
     }
 }

@@ -8,8 +8,15 @@
 
 <div class="card border-0 shadow-sm">
     <div class="card-body p-4">
-        <form method="post" action="@Url.Action("Create", "Projects", new { area = "Admin" })" novalidate>
+        <form method="post" action="@Url.Action("Create", "Projects", new { area = "Admin" })" enctype="multipart/form-data" novalidate>
             @Html.AntiForgeryToken()
+
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="alert alert-danger" role="alert">
+                    @Html.ValidationSummary(excludePropertyErrors: false)
+                </div>
+            }
 
             <div class="mb-3">
                 <label class="form-label" for="title">Title</label>
@@ -22,7 +29,13 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label" for="images">Images (one filename per line)</label>
+                <label class="form-label" for="imageFiles">Project Images (upload)</label>
+                <input class="form-control" id="imageFiles" name="ImageFiles" type="file" accept="image/*" multiple>
+                <div class="form-text">Uploads to <code>/uploads</code>. You can still add filenames below.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="images">Project Images (filenames, one per line)</label>
                 <textarea class="form-control" id="images" name="ImagesText" rows="5">@Model.ImagesText</textarea>
             </div>
 
