@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -12,14 +14,14 @@ namespace PortfolioWeb.Areas.Admin.Controllers;
 
 [Area("Admin")]
 [Authorize(Roles = "Admin,User")]
-public class ServicesController : Controller
+public class HomeContentController : Controller
 {
     private readonly PortfolioRepository _repo;
-    private readonly ILogger<ServicesController> _logger;
+    private readonly ILogger<HomeContentController> _logger;
 
     private const string PortfolioUserIdClaim = "PortfolioUserId";
 
-    public ServicesController(PortfolioRepository repo, ILogger<ServicesController> logger)
+    public HomeContentController(PortfolioRepository repo, ILogger<HomeContentController> logger)
     {
         _repo = repo;
         _logger = logger;
@@ -35,7 +37,7 @@ public class ServicesController : Controller
         }
 
         ViewData["UserId"] = contextUserId;
-        var rows = await _repo.GetServicesAllAsync(contextUserId);
+        var rows = await _repo.GetHomeContentAllAsync(contextUserId);
         return View(rows);
     }
 
@@ -49,12 +51,12 @@ public class ServicesController : Controller
         }
 
         ViewData["UserId"] = contextUserId;
-        return View(new ServiceEditModel());
+        return View(new HomeContentEditModel());
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(ServiceEditModel input, int? userId = null)
+    public async Task<IActionResult> Create(HomeContentEditModel input, int? userId = null)
     {
         var contextUserId = ResolveContextUserId(userId);
         if (User.IsInRole("User") && contextUserId is null)
@@ -71,23 +73,22 @@ public class ServicesController : Controller
 
         try
         {
-            var row = new ServiceRecord
+            var record = new HomeContentRecord
             {
                 UserId = contextUserId is null ? null : (uint)contextUserId.Value,
-                Title = input.Title?.Trim() ?? string.Empty,
-                Description = input.Description ?? string.Empty,
-                Pricing = string.IsNullOrWhiteSpace(input.Pricing) ? null : input.Pricing.Trim(),
-                Tags = string.IsNullOrWhiteSpace(input.Tags) ? null : input.Tags.Trim(),
-                DisplayOrder = input.DisplayOrder,
+                HeroTitle = input.HeroTitle?.Trim() ?? string.Empty,
+                HeroSubtitle = input.HeroSubtitle?.Trim() ?? string.Empty,
+                HeroCtaText = input.HeroCtaText?.Trim() ?? string.Empty,
+                HeroCtaLink = input.HeroCtaLink?.Trim() ?? string.Empty,
                 IsActive = input.IsActive ? 1 : 0,
             };
 
-            await _repo.InsertServiceAsync(row);
+            await _repo.InsertHomeContentAsync(record);
             return RedirectToAction("Index", new { userId = User.IsInRole("Admin") ? contextUserId : null });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create service.");
+            _logger.LogError(ex, "Failed to create home content.");
             ModelState.AddModelError(string.Empty, "Unable to save right now.");
             return View(input);
         }
@@ -102,7 +103,7 @@ public class ServicesController : Controller
             return Forbid();
         }
 
-        var row = await _repo.GetServiceByIdAsync(id);
+        var row = await _repo.GetHomeContentByIdAsync(id);
         if (row is null)
         {
             return NotFound();
@@ -119,14 +120,13 @@ public class ServicesController : Controller
 
         ViewData["UserId"] = User.IsInRole("Admin") ? (row.UserId.HasValue ? (int)row.UserId.Value : contextUserId) : contextUserId;
 
-        var model = new ServiceEditModel
+        var model = new HomeContentEditModel
         {
             Id = row.Id,
-            Title = row.Title,
-            Description = row.Description,
-            Pricing = row.Pricing,
-            Tags = row.Tags,
-            DisplayOrder = row.DisplayOrder,
+            HeroTitle = row.HeroTitle,
+            HeroSubtitle = row.HeroSubtitle,
+            HeroCtaText = row.HeroCtaText,
+            HeroCtaLink = row.HeroCtaLink,
             IsActive = row.IsActive == 1,
         };
 
@@ -135,7 +135,7 @@ public class ServicesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(ServiceEditModel input, int? userId = null)
+    public async Task<IActionResult> Edit(HomeContentEditModel input, int? userId = null)
     {
         var contextUserId = ResolveContextUserId(userId);
         if (User.IsInRole("User") && contextUserId is null)
@@ -152,7 +152,7 @@ public class ServicesController : Controller
 
         try
         {
-            var existing = await _repo.GetServiceByIdAsync((int)input.Id);
+            var existing = await _repo.GetHomeContentByIdAsync((int)input.Id);
             if (existing is null)
             {
                 return NotFound();
@@ -167,23 +167,22 @@ public class ServicesController : Controller
                 }
             }
 
-            var row = new ServiceRecord
+            var row = new HomeContentRecord
             {
                 Id = input.Id,
-                Title = input.Title?.Trim() ?? string.Empty,
-                Description = input.Description ?? string.Empty,
-                Pricing = string.IsNullOrWhiteSpace(input.Pricing) ? null : input.Pricing.Trim(),
-                Tags = string.IsNullOrWhiteSpace(input.Tags) ? null : input.Tags.Trim(),
-                DisplayOrder = input.DisplayOrder,
+                HeroTitle = input.HeroTitle?.Trim() ?? string.Empty,
+                HeroSubtitle = input.HeroSubtitle?.Trim() ?? string.Empty,
+                HeroCtaText = input.HeroCtaText?.Trim() ?? string.Empty,
+                HeroCtaLink = input.HeroCtaLink?.Trim() ?? string.Empty,
                 IsActive = input.IsActive ? 1 : 0,
             };
 
-            await _repo.UpdateServiceAsync(row);
+            await _repo.UpdateHomeContentAsync(row);
             return RedirectToAction("Index", new { userId = User.IsInRole("Admin") ? (existing.UserId.HasValue ? (int)existing.UserId.Value : contextUserId) : null });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update service.");
+            _logger.LogError(ex, "Failed to update home content.");
             ModelState.AddModelError(string.Empty, "Unable to save right now.");
             return View(input);
         }
@@ -199,7 +198,7 @@ public class ServicesController : Controller
             return Forbid();
         }
 
-        var existing = await _repo.GetServiceByIdAsync(id);
+        var existing = await _repo.GetHomeContentByIdAsync(id);
         if (existing is null)
         {
             return NotFound();
@@ -214,7 +213,7 @@ public class ServicesController : Controller
             }
         }
 
-        await _repo.DeleteServiceAsync(id);
+        await _repo.DeleteHomeContentAsync(id);
         return RedirectToAction("Index", new { userId = User.IsInRole("Admin") ? (existing.UserId.HasValue ? (int)existing.UserId.Value : contextUserId) : null });
     }
 

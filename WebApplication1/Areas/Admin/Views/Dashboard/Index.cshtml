@@ -1,5 +1,13 @@
-﻿@{
+﻿@model PortfolioWeb.Areas.Admin.Models.DashboardViewModel
+
+@{
     ViewData["Title"] = "Dashboard";
+
+    int? linkUserId = null;
+    if (User.IsInRole("Admin"))
+    {
+        linkUserId = Model?.ContextUserId;
+    }
 }
 
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -7,21 +15,20 @@
         <h1 class="h3 mb-1">Dashboard</h1>
         <div class="text-muted">Welcome, <strong>@(User?.Identity?.Name ?? "Admin")</strong></div>
     </div>
-    <a class="btn btn-outline-dark" href="@Url.Action("Index", "Home", new { area = "" })">View Site</a>
 </div>
 
 <div class="row g-3">
     <div class="col-md-6 col-lg-3">
-        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "HomeContent", new { area = "Admin" })">
+        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "HomeContent", new { area = "Admin", userId = linkUserId })">
             <div class="card-body">
                 <div class="fw-semibold">Home Content</div>
-                <div class="text-muted small">Edit hero title, CTA, highlights</div>
+                <div class="text-muted small">Edit hero title and CTA</div>
             </div>
         </a>
     </div>
 
     <div class="col-md-6 col-lg-3">
-        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "AboutContent", new { area = "Admin" })">
+        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "AboutContent", new { area = "Admin", userId = linkUserId })">
             <div class="card-body">
                 <div class="fw-semibold">About Content</div>
                 <div class="text-muted small">Edit bio, skills, experience</div>
@@ -30,7 +37,7 @@
     </div>
 
     <div class="col-md-6 col-lg-3">
-        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "Services", new { area = "Admin" })">
+        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "Services", new { area = "Admin", userId = linkUserId })">
             <div class="card-body">
                 <div class="fw-semibold">Services</div>
                 <div class="text-muted small">Add/update services and pricing</div>
@@ -39,7 +46,7 @@
     </div>
 
     <div class="col-md-6 col-lg-3">
-        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "Projects", new { area = "Admin" })">
+        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "Projects", new { area = "Admin", userId = linkUserId })">
             <div class="card-body">
                 <div class="fw-semibold">Projects</div>
                 <div class="text-muted small">Manage your portfolio items</div>
@@ -47,12 +54,72 @@
         </a>
     </div>
 
-    <div class="col-md-6 col-lg-3">
-        <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "Messages", new { area = "Admin" })">
-            <div class="card-body">
-                <div class="fw-semibold">Messages</div>
-                <div class="text-muted small">View contact form submissions</div>
+    @if (User.IsInRole("Admin"))
+    {
+        <div class="col-md-6 col-lg-3">
+            <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("Index", "Messages", new { area = "Admin" })">
+                <div class="card-body">
+                    <div class="fw-semibold">Messages</div>
+                    <div class="text-muted small">View contact form submissions</div>
+                </div>
+            </a>
+        </div>
+    }
+
+    @if (User.IsInRole("User"))
+    {
+        <div class="col-md-6 col-lg-3">
+            <a class="card border-0 shadow-sm text-decoration-none" href="@Url.Action("MyProfile", "Users", new { area = "Admin" })">
+                <div class="card-body">
+                    <div class="fw-semibold">My Profile</div>
+                    <div class="text-muted small">Update your name and contact info</div>
+                </div>
+            </a>
+        </div>
+    }
+</div>
+
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+            <div>
+                <div class="fw-semibold">Users</div>
+                <div class="text-muted small">Open the public site with a selected user's information.</div>
             </div>
-        </a>
+            @if (User.IsInRole("Admin"))
+            {
+                <a class="btn btn-outline-dark btn-sm" href="@Url.Action("Signup", "Account", new { area = "Admin" })">Add user</a>
+            }
+        </div>
+
+        @if (Model?.Users is null || Model.Users.Count == 0)
+        {
+            <div class="text-muted">No users yet.</div>
+        }
+        else
+        {
+            <div class="list-group">
+                @foreach (var u in Model.Users)
+                {
+                    <div class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <div>
+                            <div class="fw-semibold">@u.Username</div>
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <div class="text-muted small">@u.Email</div>
+                            }
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <a class="btn btn-sm btn-outline-primary" href="@Url.Action("Index", "Dashboard", new { area = "Admin", userId = u.Id })">Manage</a>
+                                <a class="btn btn-sm btn-outline-dark" href="@Url.Action("Edit", "Users", new { area = "Admin", id = u.Id })">Edit</a>
+                            }
+                            <a class="btn btn-sm btn-outline-secondary" href="@Url.Action("Index", "Home", new { area = "", userId = u.Id })" target="_blank" rel="noopener noreferrer">Open</a>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
     </div>
 </div>

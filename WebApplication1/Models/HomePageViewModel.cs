@@ -9,7 +9,6 @@ public class HomePageViewModel
     public string HeroSubtitle { get; set; } = "Developer • Designer • Problem Solver";
     public string HeroCtaText { get; set; } = "View Work";
     public string HeroCtaLink { get; set; } = "#portfolio";
-    public List<string> Highlights { get; set; } = new() { "Fast", "Reliable", "Creative" };
 
     public bool ShowAbout { get; set; } = true;
     public string AboutBio { get; set; } = "This section will be connected to the database.";

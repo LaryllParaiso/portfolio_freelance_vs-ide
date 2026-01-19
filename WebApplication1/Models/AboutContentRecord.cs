@@ -5,6 +5,7 @@ namespace PortfolioWeb.Models;
 public class AboutContentRecord
 {
     public uint Id { get; set; }
+    public uint? UserId { get; set; }
     public string Bio { get; set; } = string.Empty;
     public string? ProfileImage { get; set; }
     public string? Skills { get; set; }

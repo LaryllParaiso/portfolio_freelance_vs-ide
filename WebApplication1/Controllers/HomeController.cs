@@ -4,6 +4,7 @@ using System.Linq;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using PortfolioWeb.Data;
@@ -16,6 +17,8 @@ public class HomeController : Controller
     private readonly PortfolioRepository _repo;
     private readonly ILogger<HomeController> _logger;
 
+    private const string PortfolioUserIdClaim = "PortfolioUserId";
+
     public HomeController(PortfolioRepository repo, ILogger<HomeController> logger)
     {
         _repo = repo;
@@ -23,10 +26,40 @@ public class HomeController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int? userId = null)
     {
-        var vm = await _repo.GetHomePageAsync();
+        int? portfolioUserId = null;
+
+        if (User?.Identity?.IsAuthenticated == true)
+        {
+            if (User.IsInRole("User"))
+            {
+                var claim = User.FindFirstValue(PortfolioUserIdClaim);
+                if (int.TryParse(claim, out var parsed) && parsed > 0)
+                {
+                    portfolioUserId = parsed;
+                }
+            }
+            else if (User.IsInRole("Admin") && userId is not null && userId.Value > 0)
+            {
+                portfolioUserId = userId.Value;
+            }
+        }
+
+        var vm = await _repo.GetHomePageAsync(portfolioUserId);
         return View(vm);
+    }
+
+    [HttpGet("/home")]
+    public IActionResult Home()
+    {
+        return Redirect(Url.Action("Index", "Home") + "#home");
+    }
+
+    [HttpGet("/about")]
+    public IActionResult About()
+    {
+        return Redirect(Url.Action("Index", "Home") + "#about");
     }
 
     [HttpPost]

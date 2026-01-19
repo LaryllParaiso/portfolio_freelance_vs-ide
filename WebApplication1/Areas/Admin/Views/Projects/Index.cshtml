@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "Projects";
+    var contextUserId = ViewData["UserId"] is int i ? (int?)i : null;
 }
 
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -9,7 +10,7 @@
         <h1 class="h3 mb-1">Projects</h1>
         <div class="text-muted">Manage portfolio items</div>
     </div>
-    <a class="btn btn-danger" href="@Url.Action("Create", "Projects", new { area = "Admin" })"><i class="bi bi-plus-lg me-1"></i>New</a>
+    <a class="btn btn-danger" href="@Url.Action("Create", "Projects", new { area = "Admin", userId = contextUserId })"><i class="bi bi-plus-lg me-1"></i>New</a>
 </div>
 
 <div class="card border-0 shadow-sm">
@@ -52,8 +53,8 @@
                             </td>
                             <td>@row.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</td>
                             <td class="text-end">
-                                <a class="btn btn-sm btn-outline-dark" href="@Url.Action("Edit", "Projects", new { area = "Admin", id = row.Id })">Edit</a>
-                                <form method="post" action="@Url.Action("Delete", "Projects", new { area = "Admin", id = row.Id })" class="d-inline" onsubmit="return confirm('Delete this record?');">
+                                <a class="btn btn-sm btn-outline-dark" href="@Url.Action("Edit", "Projects", new { area = "Admin", id = row.Id, userId = contextUserId })">Edit</a>
+                                <form method="post" action="@Url.Action("Delete", "Projects", new { area = "Admin", id = row.Id, userId = contextUserId })" class="d-inline" onsubmit="return confirm('Delete this record?');">
                                     @Html.AntiForgeryToken()
                                     <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
                                 </form>

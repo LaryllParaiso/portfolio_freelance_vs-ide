@@ -22,7 +22,5 @@ public class HomeContentEditModel
     [MaxLength(255)]
     public string HeroCtaLink { get; set; } = string.Empty;
 
-    public string? HighlightsText { get; set; }
-
     public bool IsActive { get; set; } = true;
 }

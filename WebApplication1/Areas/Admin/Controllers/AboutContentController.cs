@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -16,12 +17,14 @@ using PortfolioWeb.Models;
 namespace PortfolioWeb.Areas.Admin.Controllers;
 
 [Area("Admin")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,User")]
 public class AboutContentController : Controller
 {
     private readonly PortfolioRepository _repo;
     private readonly ILogger<AboutContentController> _logger;
     private readonly IWebHostEnvironment _env;
+
+    private const string PortfolioUserIdClaim = "PortfolioUserId";
 
     public AboutContentController(PortfolioRepository repo, ILogger<AboutContentController> logger, IWebHostEnvironment env)
     {
@@ -31,15 +34,29 @@ public class AboutContentController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int? userId = null)
     {
-        var rows = await _repo.GetAboutContentAllAsync();
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
+        ViewData["UserId"] = contextUserId;
+        var rows = await _repo.GetAboutContentAllAsync(contextUserId);
         return View(rows);
     }
 
     [HttpGet]
-    public IActionResult Create()
+    public IActionResult Create(int? userId = null)
     {
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
+        ViewData["UserId"] = contextUserId;
         return View(new AboutContentEditModel
         {
             ExperienceItems = new List<AboutExperienceItem> { new AboutExperienceItem() }
@@ -48,8 +65,16 @@ public class AboutContentController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(AboutContentEditModel input, IFormFile? ProfileImageFile)
+    public async Task<IActionResult> Create(AboutContentEditModel input, IFormFile? ProfileImageFile, int? userId = null)
     {
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
+        ViewData["UserId"] = contextUserId;
+
         if (!ModelState.IsValid)
         {
             EnsureExperienceRows(input);
@@ -61,6 +86,7 @@ public class AboutContentController : Controller
             var profileImage = await SaveUploadedImageAsync(ProfileImageFile) ?? NormalizeStoredImage(input.ProfileImage);
             var record = new AboutContentRecord
             {
+                UserId = contextUserId is null ? null : (uint)contextUserId.Value,
                 Bio = input.Bio ?? string.Empty,
                 ProfileImage = profileImage,
                 Skills = NormalizeLinesToJsonArray(input.SkillsText),
@@ -69,7 +95,7 @@ public class AboutContentController : Controller
             };
 
             await _repo.InsertAboutContentAsync(record);
-            return RedirectToAction("Index");
+            return RedirectToAction("Index", new { userId = User.IsInRole("Admin") ? contextUserId : null });
         }
         catch (InvalidOperationException ex)
         {
@@ -88,13 +114,30 @@ public class AboutContentController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Edit(int id)
+    public async Task<IActionResult> Edit(int id, int? userId = null)
     {
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
         var row = await _repo.GetAboutContentByIdAsync(id);
         if (row is null)
         {
             return NotFound();
         }
+
+        if (User.IsInRole("User"))
+        {
+            var owner = row.UserId.HasValue ? (int)row.UserId.Value : (int?)null;
+            if (owner != contextUserId)
+            {
+                return Forbid();
+            }
+        }
+
+        ViewData["UserId"] = User.IsInRole("Admin") ? (row.UserId.HasValue ? (int)row.UserId.Value : contextUserId) : contextUserId;
 
         var model = new AboutContentEditModel
         {
@@ -114,8 +157,16 @@ public class AboutContentController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(AboutContentEditModel input, IFormFile? ProfileImageFile)
+    public async Task<IActionResult> Edit(AboutContentEditModel input, IFormFile? ProfileImageFile, int? userId = null)
     {
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
+        ViewData["UserId"] = contextUserId;
+
         if (!ModelState.IsValid)
         {
             EnsureExperienceRows(input);
@@ -124,6 +175,21 @@ public class AboutContentController : Controller
 
         try
         {
+            var existing = await _repo.GetAboutContentByIdAsync((int)input.Id);
+            if (existing is null)
+            {
+                return NotFound();
+            }
+
+            if (User.IsInRole("User"))
+            {
+                var owner = existing.UserId.HasValue ? (int)existing.UserId.Value : (int?)null;
+                if (owner != contextUserId)
+                {
+                    return Forbid();
+                }
+            }
+
             var profileImage = await SaveUploadedImageAsync(ProfileImageFile) ?? NormalizeStoredImage(input.ProfileImage);
             var row = new AboutContentRecord
             {
@@ -136,7 +202,7 @@ public class AboutContentController : Controller
             };
 
             await _repo.UpdateAboutContentAsync(row);
-            return RedirectToAction("Index");
+            return RedirectToAction("Index", new { userId = User.IsInRole("Admin") ? (existing.UserId.HasValue ? (int)existing.UserId.Value : contextUserId) : null });
         }
         catch (InvalidOperationException ex)
         {
@@ -156,10 +222,47 @@ public class AboutContentController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, int? userId = null)
     {
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
+        var existing = await _repo.GetAboutContentByIdAsync(id);
+        if (existing is null)
+        {
+            return NotFound();
+        }
+
+        if (User.IsInRole("User"))
+        {
+            var owner = existing.UserId.HasValue ? (int)existing.UserId.Value : (int?)null;
+            if (owner != contextUserId)
+            {
+                return Forbid();
+            }
+        }
+
         await _repo.DeleteAboutContentAsync(id);
-        return RedirectToAction("Index");
+        return RedirectToAction("Index", new { userId = User.IsInRole("Admin") ? (existing.UserId.HasValue ? (int)existing.UserId.Value : contextUserId) : null });
+    }
+
+    private int? ResolveContextUserId(int? userId)
+    {
+        if (User.IsInRole("User"))
+        {
+            var claim = User.FindFirstValue(PortfolioUserIdClaim);
+            return int.TryParse(claim, out var parsed) && parsed > 0 ? parsed : null;
+        }
+
+        if (User.IsInRole("Admin"))
+        {
+            return userId is not null && userId.Value > 0 ? userId.Value : null;
+        }
+
+        return null;
     }
 
     private static string? NormalizeLinesToJsonArray(string? text)

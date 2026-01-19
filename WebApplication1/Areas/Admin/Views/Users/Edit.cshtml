@@ -1,0 +1,56 @@
+﻿@model PortfolioWeb.Areas.Admin.Models.UserEditModel
+
+@{
+    ViewData["Title"] = "Edit User";
+}
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <h1 class="h4 mb-3">Edit Profile</h1>
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            var errors = ViewData.ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Where(m => !string.IsNullOrWhiteSpace(m)).ToList();
+            if (errors.Count > 0)
+            {
+                <div class="alert alert-danger">
+                    <div class="fw-semibold mb-2">Please fix the following:</div>
+                    <ul class="mb-0">
+                        @foreach (var err in errors)
+                        {
+                            <li>@err</li>
+                        }
+                    </ul>
+                </div>
+            }
+        }
+
+        <form method="post" action="@Url.Action("Edit", "Users", new { area = "Admin" })" novalidate>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Id" value="@Model.Id" />
+
+            <div class="mb-3">
+                <label class="form-label" for="username">Username</label>
+                <input class="form-control" id="username" name="Username" type="text" maxlength="50" required value="@Model.Username" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="email">Email</label>
+                <input class="form-control" id="email" name="Email" type="email" maxlength="255" required value="@Model.Email" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="phone">Phone</label>
+                <input class="form-control" id="phone" name="Phone" type="text" maxlength="30" value="@Model.Phone" />
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label" for="location">Location</label>
+                <input class="form-control" id="location" name="Location" type="text" maxlength="120" value="@Model.Location" />
+            </div>
+
+            <button class="btn btn-primary" type="submit">Save</button>
+            <a class="btn btn-outline-secondary ms-2" href="@Url.Action("Index", "Dashboard", new { area = "Admin" })">Cancel</a>
+        </form>
+    </div>
+</div>

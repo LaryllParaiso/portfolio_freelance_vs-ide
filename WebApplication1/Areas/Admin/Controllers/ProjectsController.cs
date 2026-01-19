@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -16,12 +17,14 @@ using PortfolioWeb.Models;
 namespace PortfolioWeb.Areas.Admin.Controllers;
 
 [Area("Admin")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,User")]
 public class ProjectsController : Controller
 {
     private readonly PortfolioRepository _repo;
     private readonly ILogger<ProjectsController> _logger;
     private readonly IWebHostEnvironment _env;
+
+    private const string PortfolioUserIdClaim = "PortfolioUserId";
 
     public ProjectsController(PortfolioRepository repo, ILogger<ProjectsController> logger, IWebHostEnvironment env)
     {
@@ -31,22 +34,44 @@ public class ProjectsController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(int? userId = null)
     {
-        var rows = await _repo.GetProjectsAllAsync();
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
+        ViewData["UserId"] = contextUserId;
+        var rows = await _repo.GetProjectsAllAsync(contextUserId);
         return View(rows);
     }
 
     [HttpGet]
-    public IActionResult Create()
+    public IActionResult Create(int? userId = null)
     {
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
+        ViewData["UserId"] = contextUserId;
         return View(new ProjectEditModel());
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(ProjectEditModel input, List<IFormFile>? ImageFiles)
+    public async Task<IActionResult> Create(ProjectEditModel input, List<IFormFile>? ImageFiles, int? userId = null)
     {
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
+        ViewData["UserId"] = contextUserId;
+
         if (!ModelState.IsValid)
         {
             return View(input);
@@ -59,6 +84,7 @@ public class ProjectsController : Controller
 
             var row = new ProjectRecord
             {
+                UserId = contextUserId is null ? null : (uint)contextUserId.Value,
                 Title = input.Title?.Trim() ?? string.Empty,
                 Description = input.Description ?? string.Empty,
                 Images = mergedImages,
@@ -69,7 +95,7 @@ public class ProjectsController : Controller
             };
 
             await _repo.InsertProjectAsync(row);
-            return RedirectToAction("Index");
+            return RedirectToAction("Index", new { userId = User.IsInRole("Admin") ? contextUserId : null });
         }
         catch (InvalidOperationException ex)
         {
@@ -86,13 +112,30 @@ public class ProjectsController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Edit(int id)
+    public async Task<IActionResult> Edit(int id, int? userId = null)
     {
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
         var row = await _repo.GetProjectByIdAsync(id);
         if (row is null)
         {
             return NotFound();
         }
+
+        if (User.IsInRole("User"))
+        {
+            var owner = row.UserId.HasValue ? (int)row.UserId.Value : (int?)null;
+            if (owner != contextUserId)
+            {
+                return Forbid();
+            }
+        }
+
+        ViewData["UserId"] = User.IsInRole("Admin") ? (row.UserId.HasValue ? (int)row.UserId.Value : contextUserId) : contextUserId;
 
         var model = new ProjectEditModel
         {
@@ -111,8 +154,16 @@ public class ProjectsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(ProjectEditModel input, List<IFormFile>? ImageFiles)
+    public async Task<IActionResult> Edit(ProjectEditModel input, List<IFormFile>? ImageFiles, int? userId = null)
     {
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
+        ViewData["UserId"] = contextUserId;
+
         if (!ModelState.IsValid)
         {
             return View(input);
@@ -120,6 +171,21 @@ public class ProjectsController : Controller
 
         try
         {
+            var existing = await _repo.GetProjectByIdAsync((int)input.Id);
+            if (existing is null)
+            {
+                return NotFound();
+            }
+
+            if (User.IsInRole("User"))
+            {
+                var owner = existing.UserId.HasValue ? (int)existing.UserId.Value : (int?)null;
+                if (owner != contextUserId)
+                {
+                    return Forbid();
+                }
+            }
+
             var uploaded = await SaveUploadedImagesAsync(ImageFiles);
             var mergedImages = MergeImageInputs(input.ImagesText, uploaded);
 
@@ -136,7 +202,7 @@ public class ProjectsController : Controller
             };
 
             await _repo.UpdateProjectAsync(row);
-            return RedirectToAction("Index");
+            return RedirectToAction("Index", new { userId = User.IsInRole("Admin") ? (existing.UserId.HasValue ? (int)existing.UserId.Value : contextUserId) : null });
         }
         catch (InvalidOperationException ex)
         {
@@ -154,10 +220,47 @@ public class ProjectsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, int? userId = null)
     {
+        var contextUserId = ResolveContextUserId(userId);
+        if (User.IsInRole("User") && contextUserId is null)
+        {
+            return Forbid();
+        }
+
+        var existing = await _repo.GetProjectByIdAsync(id);
+        if (existing is null)
+        {
+            return NotFound();
+        }
+
+        if (User.IsInRole("User"))
+        {
+            var owner = existing.UserId.HasValue ? (int)existing.UserId.Value : (int?)null;
+            if (owner != contextUserId)
+            {
+                return Forbid();
+            }
+        }
+
         await _repo.DeleteProjectAsync(id);
-        return RedirectToAction("Index");
+        return RedirectToAction("Index", new { userId = User.IsInRole("Admin") ? (existing.UserId.HasValue ? (int)existing.UserId.Value : contextUserId) : null });
+    }
+
+    private int? ResolveContextUserId(int? userId)
+    {
+        if (User.IsInRole("User"))
+        {
+            var claim = User.FindFirstValue(PortfolioUserIdClaim);
+            return int.TryParse(claim, out var parsed) && parsed > 0 ? parsed : null;
+        }
+
+        if (User.IsInRole("Admin"))
+        {
+            return userId is not null && userId.Value > 0 ? userId.Value : null;
+        }
+
+        return null;
     }
 
     private static string? NormalizeLinesToJsonArray(string? text)

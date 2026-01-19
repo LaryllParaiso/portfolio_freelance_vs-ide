@@ -30,7 +30,7 @@ public class PortfolioRepository
 
     private MySqlConnection CreateConnection() => new(_connectionString);
 
-    public async Task<HomePageViewModel> GetHomePageAsync()
+    public async Task<HomePageViewModel> GetHomePageAsync(int? portfolioUserId = null)
     {
         var vm = new HomePageViewModel();
 
@@ -45,10 +45,18 @@ public class PortfolioRepository
             await conn.OpenAsync();
 
             await LoadAdminAsync(conn, vm);
-            await LoadHomeContentAsync(conn, vm);
-            await LoadProjectsAsync(conn, vm);
-            await LoadServicesAsync(conn, vm);
-            await LoadAboutAsync(conn, vm);
+
+            int? effectiveUserId = null;
+            if (portfolioUserId is not null && portfolioUserId.Value > 0)
+            {
+                effectiveUserId = portfolioUserId.Value;
+                await LoadPortfolioUserAsync(conn, vm, portfolioUserId.Value);
+            }
+
+            await LoadHomeContentAsync(conn, vm, effectiveUserId);
+            await LoadProjectsAsync(conn, vm, effectiveUserId);
+            await LoadServicesAsync(conn, vm, effectiveUserId);
+            await LoadAboutAsync(conn, vm, effectiveUserId);
 
             vm.AboutSkillBars = BuildSkillBars(vm.AboutSkills);
         }
@@ -223,12 +231,190 @@ public class PortfolioRepository
         };
     }
 
+    public async Task<bool> CreateUserAsync(string username, string email, string? phone, string? location, string password)
+    {
+        if (string.IsNullOrWhiteSpace(_connectionString))
+        {
+            throw new InvalidOperationException("Missing connection string 'PortfolioDb'.");
+        }
+
+        var u = (username ?? string.Empty).Trim();
+        var e = (email ?? string.Empty).Trim();
+        var ph = string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+        var loc = string.IsNullOrWhiteSpace(location) ? null : location.Trim();
+
+        if (string.IsNullOrWhiteSpace(u) || string.IsNullOrWhiteSpace(e) || string.IsNullOrWhiteSpace(password))
+        {
+            return false;
+        }
+
+        await using var conn = CreateConnection();
+        await conn.OpenAsync();
+
+        var hash = BCrypt.Net.BCrypt.HashPassword(password, 12);
+        const string insertSql = "INSERT INTO users (username, email, phone, location, password_hash) VALUES (@Username, @Email, @Phone, @Location, @PasswordHash)";
+        var rows = await conn.ExecuteAsync(insertSql, new
+        {
+            Username = u,
+            Email = e,
+            Phone = ph,
+            Location = loc,
+            PasswordHash = hash,
+        });
+
+        return rows > 0;
+    }
+
+    public async Task<PortfolioUserAuthUser?> AuthenticateUserAsync(string email, string password)
+    {
+        if (string.IsNullOrWhiteSpace(_connectionString))
+        {
+            throw new InvalidOperationException("Missing connection string 'PortfolioDb'.");
+        }
+
+        var e = (email ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(e) || string.IsNullOrWhiteSpace(password))
+        {
+            return null;
+        }
+
+        await using var conn = CreateConnection();
+        await conn.OpenAsync();
+
+        const string sql = "SELECT id, username, email, phone, location, password_hash FROM users WHERE email = @Email LIMIT 1";
+        var row = await conn.QueryFirstOrDefaultAsync<UserAuthRow>(sql, new { Email = e });
+        if (row is null || string.IsNullOrWhiteSpace(row.PasswordHash))
+        {
+            return null;
+        }
+
+        var ok = false;
+        try
+        {
+            ok = BCrypt.Net.BCrypt.Verify(password, row.PasswordHash);
+        }
+        catch
+        {
+            ok = false;
+        }
+
+        if (!ok)
+        {
+            return null;
+        }
+
+        return new PortfolioUserAuthUser
+        {
+            Id = row.Id,
+            Username = row.Username?.Trim() ?? string.Empty,
+            Email = row.Email?.Trim() ?? string.Empty,
+            Phone = row.Phone?.Trim(),
+            Location = row.Location?.Trim(),
+        };
+    }
+
+    public async Task<List<PortfolioUserListItem>> GetUsersAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_connectionString))
+        {
+            return new List<PortfolioUserListItem>();
+        }
+
+        await using var conn = CreateConnection();
+        await conn.OpenAsync();
+
+        const string sql = "SELECT id, username, email FROM users ORDER BY id ASC";
+        return (await conn.QueryAsync<PortfolioUserListItem>(sql)).ToList();
+    }
+
+    public async Task<PortfolioUserAuthUser?> GetUserByIdAsync(int id)
+    {
+        if (string.IsNullOrWhiteSpace(_connectionString))
+        {
+            return null;
+        }
+
+        if (id <= 0)
+        {
+            return null;
+        }
+
+        await using var conn = CreateConnection();
+        await conn.OpenAsync();
+
+        const string sql = "SELECT id, username, email, phone, location FROM users WHERE id = @Id LIMIT 1";
+        var row = await conn.QueryFirstOrDefaultAsync<UserRow>(sql, new { Id = id });
+        if (row is null)
+        {
+            return null;
+        }
+
+        return new PortfolioUserAuthUser
+        {
+            Id = row.Id,
+            Username = row.Username?.Trim() ?? string.Empty,
+            Email = row.Email?.Trim() ?? string.Empty,
+            Phone = row.Phone?.Trim(),
+            Location = row.Location?.Trim(),
+        };
+    }
+
+    public async Task<bool> UpdateUserAsync(int id, string username, string email, string? phone, string? location)
+    {
+        if (string.IsNullOrWhiteSpace(_connectionString))
+        {
+            return false;
+        }
+
+        if (id <= 0)
+        {
+            return false;
+        }
+
+        var u = (username ?? string.Empty).Trim();
+        var e = (email ?? string.Empty).Trim();
+        var ph = string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+        var loc = string.IsNullOrWhiteSpace(location) ? null : location.Trim();
+
+        if (string.IsNullOrWhiteSpace(u) || string.IsNullOrWhiteSpace(e))
+        {
+            return false;
+        }
+
+        await using var conn = CreateConnection();
+        await conn.OpenAsync();
+
+        const string sql = "UPDATE users SET username = @Username, email = @Email, phone = @Phone, location = @Location WHERE id = @Id";
+        try
+        {
+            var rows = await conn.ExecuteAsync(sql, new
+            {
+                Id = id,
+                Username = u,
+                Email = e,
+                Phone = ph,
+                Location = loc,
+            });
+            return rows > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update user {UserId}.", id);
+            return false;
+        }
+    }
+
     private async Task LoadAdminAsync(MySqlConnection conn, HomePageViewModel vm)
     {
         try
         {
-            const string adminSql = "SELECT id, email, phone, location FROM admins ORDER BY id ASC LIMIT 1";
+            const string adminSql = "SELECT id, username, email, phone, location FROM admins ORDER BY id ASC LIMIT 1";
             var admin = await conn.QueryFirstOrDefaultAsync<AdminRow>(adminSql);
+
+            if (!string.IsNullOrWhiteSpace(admin?.Username))
+            {
+                vm.HeroTitle = admin.Username.Trim();
+            }
 
             vm.AdminContactEmail = admin?.Email?.Trim() ?? string.Empty;
             vm.AdminContactPhone = admin?.Phone?.Trim() ?? string.Empty;
@@ -258,7 +444,33 @@ public class PortfolioRepository
         }
     }
 
-    public async Task<List<HomeContentRecord>> GetHomeContentAllAsync()
+    private async Task LoadPortfolioUserAsync(MySqlConnection conn, HomePageViewModel vm, int userId)
+    {
+        try
+        {
+            const string sql = "SELECT id, username, email, phone, location FROM users WHERE id = @Id LIMIT 1";
+            var user = await conn.QueryFirstOrDefaultAsync<UserRow>(sql, new { Id = userId });
+            if (user is null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(user.Username))
+            {
+                vm.HeroTitle = user.Username.Trim();
+            }
+
+            vm.AdminContactEmail = user.Email?.Trim() ?? string.Empty;
+            vm.AdminContactPhone = user.Phone?.Trim() ?? string.Empty;
+            vm.AdminContactLocation = user.Location?.Trim() ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load portfolio user {UserId}.", userId);
+        }
+    }
+
+    public async Task<List<HomeContentRecord>> GetHomeContentAllAsync(int? userId = null)
     {
         if (string.IsNullOrWhiteSpace(_connectionString))
         {
@@ -268,8 +480,8 @@ public class PortfolioRepository
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = "SELECT id, hero_title, hero_subtitle, hero_cta_text, hero_cta_link, highlights, is_active, updated_at FROM home_content ORDER BY updated_at DESC, id DESC";
-        return (await conn.QueryAsync<HomeContentRecord>(sql)).ToList();
+        const string sql = "SELECT id, user_id, hero_title, hero_subtitle, hero_cta_text, hero_cta_link, is_active, updated_at FROM home_content WHERE user_id <=> @UserId ORDER BY updated_at DESC, id DESC";
+        return (await conn.QueryAsync<HomeContentRecord>(sql, new { UserId = userId })).ToList();
     }
 
     public async Task<HomeContentRecord?> GetHomeContentByIdAsync(int id)
@@ -282,7 +494,7 @@ public class PortfolioRepository
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = "SELECT id, hero_title, hero_subtitle, hero_cta_text, hero_cta_link, highlights, is_active, updated_at FROM home_content WHERE id = @Id LIMIT 1";
+        const string sql = "SELECT id, user_id, hero_title, hero_subtitle, hero_cta_text, hero_cta_link, is_active, updated_at FROM home_content WHERE id = @Id LIMIT 1";
         return await conn.QueryFirstOrDefaultAsync<HomeContentRecord>(sql, new { Id = id });
     }
 
@@ -296,17 +508,17 @@ public class PortfolioRepository
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = @"INSERT INTO home_content (hero_title, hero_subtitle, hero_cta_text, hero_cta_link, highlights, is_active)
-VALUES (@HeroTitle, @HeroSubtitle, @HeroCtaText, @HeroCtaLink, @Highlights, @IsActive);
+        const string sql = @"INSERT INTO home_content (user_id, hero_title, hero_subtitle, hero_cta_text, hero_cta_link, is_active)
+VALUES (@UserId, @HeroTitle, @HeroSubtitle, @HeroCtaText, @HeroCtaLink, @IsActive);
 SELECT LAST_INSERT_ID();";
 
         return await conn.ExecuteScalarAsync<int>(sql, new
         {
+            UserId = row.UserId,
             HeroTitle = row.HeroTitle,
             HeroSubtitle = row.HeroSubtitle,
             HeroCtaText = row.HeroCtaText,
             HeroCtaLink = row.HeroCtaLink,
-            Highlights = row.Highlights,
             IsActive = row.IsActive,
         });
     }
@@ -321,7 +533,7 @@ SELECT LAST_INSERT_ID();";
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = "UPDATE home_content SET hero_title = @HeroTitle, hero_subtitle = @HeroSubtitle, hero_cta_text = @HeroCtaText, hero_cta_link = @HeroCtaLink, highlights = @Highlights, is_active = @IsActive WHERE id = @Id";
+        const string sql = "UPDATE home_content SET hero_title = @HeroTitle, hero_subtitle = @HeroSubtitle, hero_cta_text = @HeroCtaText, hero_cta_link = @HeroCtaLink, is_active = @IsActive WHERE id = @Id";
         await conn.ExecuteAsync(sql, new
         {
             Id = row.Id,
@@ -329,7 +541,6 @@ SELECT LAST_INSERT_ID();";
             HeroSubtitle = row.HeroSubtitle,
             HeroCtaText = row.HeroCtaText,
             HeroCtaLink = row.HeroCtaLink,
-            Highlights = row.Highlights,
             IsActive = row.IsActive,
         });
     }
@@ -348,7 +559,7 @@ SELECT LAST_INSERT_ID();";
         await conn.ExecuteAsync(sql, new { Id = id });
     }
 
-    public async Task<List<AboutContentRecord>> GetAboutContentAllAsync()
+    public async Task<List<AboutContentRecord>> GetAboutContentAllAsync(int? userId = null)
     {
         if (string.IsNullOrWhiteSpace(_connectionString))
         {
@@ -358,8 +569,8 @@ SELECT LAST_INSERT_ID();";
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = "SELECT id, bio, profile_image, skills, experience, is_active, updated_at FROM about_content ORDER BY updated_at DESC, id DESC";
-        return (await conn.QueryAsync<AboutContentRecord>(sql)).ToList();
+        const string sql = "SELECT id, user_id, bio, profile_image, skills, experience, is_active, updated_at FROM about_content WHERE user_id <=> @UserId ORDER BY updated_at DESC, id DESC";
+        return (await conn.QueryAsync<AboutContentRecord>(sql, new { UserId = userId })).ToList();
     }
 
     public async Task<AboutContentRecord?> GetAboutContentByIdAsync(int id)
@@ -372,7 +583,7 @@ SELECT LAST_INSERT_ID();";
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = "SELECT id, bio, profile_image, skills, experience, is_active, updated_at FROM about_content WHERE id = @Id LIMIT 1";
+        const string sql = "SELECT id, user_id, bio, profile_image, skills, experience, is_active, updated_at FROM about_content WHERE id = @Id LIMIT 1";
         return await conn.QueryFirstOrDefaultAsync<AboutContentRecord>(sql, new { Id = id });
     }
 
@@ -386,12 +597,13 @@ SELECT LAST_INSERT_ID();";
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = @"INSERT INTO about_content (bio, profile_image, skills, experience, is_active)
-VALUES (@Bio, @ProfileImage, @Skills, @Experience, @IsActive);
+        const string sql = @"INSERT INTO about_content (user_id, bio, profile_image, skills, experience, is_active)
+VALUES (@UserId, @Bio, @ProfileImage, @Skills, @Experience, @IsActive);
 SELECT LAST_INSERT_ID();";
 
         return await conn.ExecuteScalarAsync<int>(sql, new
         {
+            UserId = row.UserId,
             Bio = row.Bio,
             ProfileImage = row.ProfileImage,
             Skills = row.Skills,
@@ -436,7 +648,7 @@ SELECT LAST_INSERT_ID();";
         await conn.ExecuteAsync(sql, new { Id = id });
     }
 
-    public async Task<List<ServiceRecord>> GetServicesAllAsync()
+    public async Task<List<ServiceRecord>> GetServicesAllAsync(int? userId = null)
     {
         if (string.IsNullOrWhiteSpace(_connectionString))
         {
@@ -446,8 +658,8 @@ SELECT LAST_INSERT_ID();";
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = "SELECT id, title, description, pricing, tags, display_order, is_active, created_at, updated_at FROM services ORDER BY display_order ASC, id ASC";
-        return (await conn.QueryAsync<ServiceRecord>(sql)).ToList();
+        const string sql = "SELECT id, user_id, title, description, pricing, tags, display_order, is_active, created_at, updated_at FROM services WHERE user_id <=> @UserId ORDER BY display_order ASC, id ASC";
+        return (await conn.QueryAsync<ServiceRecord>(sql, new { UserId = userId })).ToList();
     }
 
     public async Task<ServiceRecord?> GetServiceByIdAsync(int id)
@@ -460,7 +672,7 @@ SELECT LAST_INSERT_ID();";
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = "SELECT id, title, description, pricing, tags, display_order, is_active, created_at, updated_at FROM services WHERE id = @Id LIMIT 1";
+        const string sql = "SELECT id, user_id, title, description, pricing, tags, display_order, is_active, created_at, updated_at FROM services WHERE id = @Id LIMIT 1";
         return await conn.QueryFirstOrDefaultAsync<ServiceRecord>(sql, new { Id = id });
     }
 
@@ -474,12 +686,13 @@ SELECT LAST_INSERT_ID();";
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = @"INSERT INTO services (title, description, pricing, tags, display_order, is_active)
-VALUES (@Title, @Description, @Pricing, @Tags, @DisplayOrder, @IsActive);
+        const string sql = @"INSERT INTO services (user_id, title, description, pricing, tags, display_order, is_active)
+VALUES (@UserId, @Title, @Description, @Pricing, @Tags, @DisplayOrder, @IsActive);
 SELECT LAST_INSERT_ID();";
 
         return await conn.ExecuteScalarAsync<int>(sql, new
         {
+            UserId = row.UserId,
             Title = row.Title,
             Description = row.Description,
             Pricing = row.Pricing,
@@ -526,7 +739,7 @@ SELECT LAST_INSERT_ID();";
         await conn.ExecuteAsync(sql, new { Id = id });
     }
 
-    public async Task<List<ProjectRecord>> GetProjectsAllAsync()
+    public async Task<List<ProjectRecord>> GetProjectsAllAsync(int? userId = null)
     {
         if (string.IsNullOrWhiteSpace(_connectionString))
         {
@@ -536,8 +749,8 @@ SELECT LAST_INSERT_ID();";
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = "SELECT id, title, description, images, project_link, tech_stack, display_order, is_active, created_at, updated_at FROM projects ORDER BY display_order ASC, id ASC";
-        return (await conn.QueryAsync<ProjectRecord>(sql)).ToList();
+        const string sql = "SELECT id, user_id, title, description, images, project_link, tech_stack, display_order, is_active, created_at, updated_at FROM projects WHERE user_id <=> @UserId ORDER BY display_order ASC, id ASC";
+        return (await conn.QueryAsync<ProjectRecord>(sql, new { UserId = userId })).ToList();
     }
 
     public async Task<ProjectRecord?> GetProjectByIdAsync(int id)
@@ -550,7 +763,7 @@ SELECT LAST_INSERT_ID();";
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = "SELECT id, title, description, images, project_link, tech_stack, display_order, is_active, created_at, updated_at FROM projects WHERE id = @Id LIMIT 1";
+        const string sql = "SELECT id, user_id, title, description, images, project_link, tech_stack, display_order, is_active, created_at, updated_at FROM projects WHERE id = @Id LIMIT 1";
         return await conn.QueryFirstOrDefaultAsync<ProjectRecord>(sql, new { Id = id });
     }
 
@@ -564,12 +777,13 @@ SELECT LAST_INSERT_ID();";
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
-        const string sql = @"INSERT INTO projects (title, description, images, project_link, tech_stack, display_order, is_active)
-VALUES (@Title, @Description, @Images, @ProjectLink, @TechStack, @DisplayOrder, @IsActive);
+        const string sql = @"INSERT INTO projects (user_id, title, description, images, project_link, tech_stack, display_order, is_active)
+VALUES (@UserId, @Title, @Description, @Images, @ProjectLink, @TechStack, @DisplayOrder, @IsActive);
 SELECT LAST_INSERT_ID();";
 
         return await conn.ExecuteScalarAsync<int>(sql, new
         {
+            UserId = row.UserId,
             Title = row.Title,
             Description = row.Description,
             Images = row.Images,
@@ -618,12 +832,12 @@ SELECT LAST_INSERT_ID();";
         await conn.ExecuteAsync(sql, new { Id = id });
     }
 
-    private async Task LoadHomeContentAsync(MySqlConnection conn, HomePageViewModel vm)
+    private async Task LoadHomeContentAsync(MySqlConnection conn, HomePageViewModel vm, int? userId)
     {
         try
         {
-            const string sql = "SELECT hero_title, hero_subtitle, hero_cta_text, hero_cta_link, highlights, is_active FROM home_content ORDER BY updated_at DESC, id DESC LIMIT 1";
-            var row = await conn.QueryFirstOrDefaultAsync<HomeContentRow>(sql);
+            const string sql = "SELECT hero_title, hero_subtitle, hero_cta_text, hero_cta_link, is_active FROM home_content WHERE user_id <=> @UserId ORDER BY updated_at DESC, id DESC LIMIT 1";
+            var row = await conn.QueryFirstOrDefaultAsync<HomeContentRow>(sql, new { UserId = userId });
             if (row is null)
             {
                 return;
@@ -640,12 +854,6 @@ SELECT LAST_INSERT_ID();";
             vm.HeroSubtitle = row.HeroSubtitle?.Trim() ?? vm.HeroSubtitle;
             vm.HeroCtaText = row.HeroCtaText?.Trim() ?? vm.HeroCtaText;
             vm.HeroCtaLink = row.HeroCtaLink?.Trim() ?? vm.HeroCtaLink;
-
-            var highlights = SafeJsonArray(row.Highlights);
-            if (highlights.Count > 0)
-            {
-                vm.Highlights = highlights.Take(6).ToList();
-            }
         }
         catch (Exception ex)
         {
@@ -653,12 +861,12 @@ SELECT LAST_INSERT_ID();";
         }
     }
 
-    private async Task LoadProjectsAsync(MySqlConnection conn, HomePageViewModel vm)
+    private async Task LoadProjectsAsync(MySqlConnection conn, HomePageViewModel vm, int? userId)
     {
         try
         {
-            const string sql = "SELECT id, title, description, images, project_link, tech_stack FROM projects WHERE is_active = 1 ORDER BY display_order ASC, id ASC";
-            var rows = (await conn.QueryAsync<ProjectRow>(sql)).ToList();
+            const string sql = "SELECT id, title, description, images, project_link, tech_stack FROM projects WHERE user_id <=> @UserId AND is_active = 1 ORDER BY display_order ASC, id ASC";
+            var rows = (await conn.QueryAsync<ProjectRow>(sql, new { UserId = userId })).ToList();
 
             var projects = new List<ProjectItem>();
             foreach (var row in rows)
@@ -698,12 +906,12 @@ SELECT LAST_INSERT_ID();";
         }
     }
 
-    private async Task LoadServicesAsync(MySqlConnection conn, HomePageViewModel vm)
+    private async Task LoadServicesAsync(MySqlConnection conn, HomePageViewModel vm, int? userId)
     {
         try
         {
-            const string sql = "SELECT title, description, pricing, tags FROM services WHERE is_active = 1 ORDER BY display_order ASC, id ASC";
-            var rows = (await conn.QueryAsync<ServiceRow>(sql)).ToList();
+            const string sql = "SELECT title, description, pricing, tags FROM services WHERE user_id <=> @UserId AND is_active = 1 ORDER BY display_order ASC, id ASC";
+            var rows = (await conn.QueryAsync<ServiceRow>(sql, new { UserId = userId })).ToList();
 
             var services = new List<ServiceItem>();
             foreach (var row in rows)
@@ -743,12 +951,12 @@ SELECT LAST_INSERT_ID();";
         }
     }
 
-    private async Task LoadAboutAsync(MySqlConnection conn, HomePageViewModel vm)
+    private async Task LoadAboutAsync(MySqlConnection conn, HomePageViewModel vm, int? userId)
     {
         try
         {
-            const string sql = "SELECT bio, profile_image, skills, experience, is_active FROM about_content ORDER BY updated_at DESC, id DESC LIMIT 1";
-            var row = await conn.QueryFirstOrDefaultAsync<AboutContentRow>(sql);
+            const string sql = "SELECT bio, profile_image, skills, experience, is_active FROM about_content WHERE user_id <=> @UserId ORDER BY updated_at DESC, id DESC LIMIT 1";
+            var row = await conn.QueryFirstOrDefaultAsync<AboutContentRow>(sql, new { UserId = userId });
             if (row is null)
             {
                 return;
@@ -878,6 +1086,7 @@ SELECT LAST_INSERT_ID();";
     private sealed class AdminRow
     {
         public int Id { get; set; }
+        public string? Username { get; set; }
         public string? Email { get; set; }
         public string? Phone { get; set; }
         public string? Location { get; set; }
@@ -898,13 +1107,31 @@ SELECT LAST_INSERT_ID();";
         public string? PasswordHash { get; set; }
     }
 
+    private sealed class UserRow
+    {
+        public int Id { get; set; }
+        public string? Username { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public string? Location { get; set; }
+    }
+
+    private sealed class UserAuthRow
+    {
+        public int Id { get; set; }
+        public string? Username { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public string? Location { get; set; }
+        public string? PasswordHash { get; set; }
+    }
+
     private sealed class HomeContentRow
     {
         public string? HeroTitle { get; set; }
         public string? HeroSubtitle { get; set; }
         public string? HeroCtaText { get; set; }
         public string? HeroCtaLink { get; set; }
-        public string? Highlights { get; set; }
         public int IsActive { get; set; }
     }
 

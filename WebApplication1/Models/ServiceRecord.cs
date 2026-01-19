@@ -5,6 +5,7 @@ namespace PortfolioWeb.Models;
 public class ServiceRecord
 {
     public uint Id { get; set; }
+    public uint? UserId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string? Pricing { get; set; }

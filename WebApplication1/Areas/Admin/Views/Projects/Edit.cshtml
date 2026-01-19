@@ -2,13 +2,14 @@
 
 @{
     ViewData["Title"] = "Edit Project";
+    var contextUserId = ViewData["UserId"] is int i ? (int?)i : null;
 }
 
 <h1 class="h3 mb-4">Edit Project</h1>
 
 <div class="card border-0 shadow-sm">
     <div class="card-body p-4">
-        <form method="post" action="@Url.Action("Edit", "Projects", new { area = "Admin" })" enctype="multipart/form-data" novalidate>
+        <form method="post" action="@Url.Action("Edit", "Projects", new { area = "Admin", userId = contextUserId })" enctype="multipart/form-data" novalidate>
             @Html.AntiForgeryToken()
             <input type="hidden" name="Id" value="@Model.Id">
 
@@ -64,7 +65,7 @@
 
             <div class="d-flex gap-2">
                 <button class="btn btn-danger" type="submit">Save</button>
-                <a class="btn btn-outline-secondary" href="@Url.Action("Index", "Projects", new { area = "Admin" })">Back</a>
+                <a class="btn btn-outline-secondary" href="@Url.Action("Index", "Projects", new { area = "Admin", userId = contextUserId })">Back</a>
             </div>
         </form>
     </div>
