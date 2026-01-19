@@ -26,6 +26,23 @@ CREATE TABLE IF NOT EXISTS admins (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
+-- Table: users
+-- Stores portfolio users. The first signup becomes Admin; subsequent signups become Users.
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS users (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  username VARCHAR(50) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  phone VARCHAR(30) NULL,
+  location VARCHAR(120) NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_users_username (username),
+  UNIQUE KEY uq_users_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
 -- Table: admin_social_links
 -- Stores admin "Connect with me" icon + URL links.
 -- icon stores an uploaded image filename in /uploads.
@@ -49,6 +66,7 @@ CREATE TABLE IF NOT EXISTS admin_social_links (
 -- --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS home_content (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NULL,
   hero_title VARCHAR(255) NOT NULL,
   hero_subtitle VARCHAR(255) NOT NULL,
   hero_cta_text VARCHAR(80) NOT NULL,
@@ -57,6 +75,7 @@ CREATE TABLE IF NOT EXISTS home_content (
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  KEY idx_home_content_user_updated (user_id, updated_at),
   KEY idx_home_content_is_active (is_active),
   KEY idx_home_content_updated_at (updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -69,6 +88,7 @@ CREATE TABLE IF NOT EXISTS home_content (
 -- --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS about_content (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NULL,
   bio TEXT NOT NULL,
   profile_image VARCHAR(255) NULL,
   skills JSON NULL,
@@ -76,6 +96,7 @@ CREATE TABLE IF NOT EXISTS about_content (
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  KEY idx_about_content_user_updated (user_id, updated_at),
   KEY idx_about_content_is_active (is_active),
   KEY idx_about_content_updated_at (updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -87,6 +108,7 @@ CREATE TABLE IF NOT EXISTS about_content (
 -- --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS services (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NULL,
   title VARCHAR(120) NOT NULL,
   description TEXT NOT NULL,
   pricing VARCHAR(100) NULL,
@@ -96,6 +118,7 @@ CREATE TABLE IF NOT EXISTS services (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  KEY idx_services_user_active_order (user_id, is_active, display_order),
   KEY idx_services_is_active_order (is_active, display_order),
   KEY idx_services_display_order (display_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -108,6 +131,7 @@ CREATE TABLE IF NOT EXISTS services (
 -- --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS projects (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NULL,
   title VARCHAR(160) NOT NULL,
   description TEXT NOT NULL,
   images JSON NULL,
@@ -118,6 +142,7 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  KEY idx_projects_user_active_order (user_id, is_active, display_order),
   KEY idx_projects_is_active_order (is_active, display_order),
   KEY idx_projects_display_order (display_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
